@@ -1,0 +1,2 @@
+student_name,gender,aadhaar,dob,mother_name,father_name,mobile,email,game,beneficiary_name,account_number,ifsc,class,category,photo,aadhaar_front,aadhaar_back
+Ravi Kumar,Boy,123456789012,15/08/2012,Sunita Devi,Ramesh Kumar,9876543210,ravi@example.com,Long Jump (Athletics),Ramesh Kumar,123456789012,SBIN0001234,8,U-16,photos/ravi.jpg,aadhaar/ravi_front.jpg,aadhaar/ravi_back.jpg

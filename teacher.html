@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teacher Panel – Bihar School Games</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#f5f6fa;--cd:#fff;--tx:#1b1e2b;--mu:#6b7185;--bd:#d9dcea;--ac:#4f46e5;--bt:#fff;--ok:#15803d;--er:#b91c1c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}}
+:root[data-theme="dark"]{--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin:22px 0 8px;border-bottom:1px solid var(--bd);padding-bottom:6px}
+p.s{color:var(--mu);margin:0 0 12px;font-size:14px}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}label i{color:var(--er);font-style:normal}
+textarea,select,input[type=text],input[type=email],input[type=date],input[type=tel]{width:100%;padding:10px 12px;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px}
+.rd label{display:inline-block;font-weight:400;margin-right:16px;padding-top:8px}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--cd);color:var(--ac);cursor:pointer}
+button.p{background:var(--ac);color:var(--bt)}button:disabled{opacity:.5}
+.tabs button.on{background:var(--ac);color:var(--bt)}
+.im{border:1px dashed var(--bd);border-radius:10px;padding:12px}.im img{display:block;max-width:100%;max-height:150px;margin:8px 0;border-radius:6px}
+small{color:var(--mu)}.ok{color:var(--ok)}.er{color:var(--er)}
+#err{display:none;border:1px solid var(--er);color:var(--er);border-radius:8px;padding:10px 14px;margin-top:14px}
+#err li{margin-left:16px}
+ul.l{list-style:none;padding:0;margin:10px 0}ul.l li{padding:6px 0;border-bottom:1px solid var(--bd);font-size:14px}
+progress{width:100%;height:10px;accent-color:var(--ac);margin:6px 0 12px}details summary{cursor:pointer;font-weight:600}li button{float:right;padding:0 8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Teacher Panel</h1>
+<p class="s">Sirf teacher ke liye. Bachchon ki zip files daalte jayein; kaun baaki hai turant dikhta hai. Data sirf is browser mein rehta hai.</p>
+<div class="card">
+  <h2 style="margin-top:0">1. Class ki list</h2>
+  <label for="roster">Har line mein ek student: "Naam" ya "Naam, Class" (jaise Ravi Kumar, 8). List yaad rakhi jati hai</label>
+  <textarea id="roster" rows="5" placeholder="Ravi Kumar, 8&#10;Sunita Kumari, 7"></textarea>
+  <h2>2. Bachchon ki zip files daalein</h2>
+  <input type="file" id="zips" accept=".zip" multiple>
+  <p class="s" id="bmsg"></p>
+  <h2>3. Status</h2>
+  <div id="sum"></div><progress id="pg" max="1" value="0"></progress>
+  <div class="g">
+    <div><b class="er">Baaki</b><ul class="l" id="pl"></ul><button id="cp">Baaki list copy karein</button></div>
+    <div><b class="ok">Mil gaye</b><ul class="l" id="gl"></ul></div>
+  </div>
+  <h2>4. Export</h2>
+  <button class="p" id="exp" disabled>Download batch zip</button> <button id="clr">Sab hatayein</button>
+</div>
+<div class="card" style="margin-top:16px">
+  <h2 style="margin-top:0">Student link (Zip mode, optional)</h2>
+  <p class="s">Zaroori nahi hai: aam taur par sab bachche seedha GitHub Pages ka ek hi link use karenge, aur WhatsApp number index.html ke andar rakha hota hai (TEACHER_WHATSAPP). Yahan se link sirf tab banayein jab kisi group ke liye alag number chahiye. Number country code ke saath likhein (jaise 919876543210).</p>
+  <div class="g"><div><label for="wn">Teacher ka WhatsApp number (optional)</label><input type="text" id="wn" inputmode="numeric" placeholder="919876543210"></div></div>
+  <p><button class="p" id="mw">Link banao</button></p><p id="wm" class="er"></p><input type="text" id="wl" readonly hidden>
+</div>
+<details class="card" style="margin-top:16px"><summary>Google Sheet mode (optional)</summary>
+  <p class="s">Sirf tab jab aapne Google Script bana rakha ho. Web app URL aur access code daalkar student link banayein.</p>
+  <div class="g"><div><label for="su">Web app URL</label><input type="text" id="su" placeholder="https://script.google.com/macros/s/.../exec"></div><div><label for="sc">Access code</label><input type="text" id="sc" placeholder="jaise apna secret code"></div></div>
+  <p><button class="p" id="mk">Link banao</button></p><p id="lkm" class="er"></p><input type="text" id="lk" readonly hidden>
+</details>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const KEYS=['photo','aadhaar_front','aadhaar_back'];
+const COLS='student_name,gender,aadhaar,dob,mother_name,father_name,mobile,email,game,beneficiary_name,account_number,ifsc,class,category,photo,aadhaar_front,aadhaar_back'.split(',');
+const key=s=>s.toLowerCase().replace(/[\s.,'\u2019_-]+/g,'');
+const base=()=>/^https?:$/.test(location.protocol)?location.origin+location.pathname.replace(/teacher\.html$/,''):null;
+const BADBASE='Yeh page GitHub Pages ke link se kholein (preview ya file se link nahi ban sakta).';
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'student';
+const lev=(a,b)=>{const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]};
+const near=(k,keys)=>{let b=null,bd=3;keys.forEach((x,i)=>{if(Math.abs(x.length-k.length)<=2){const v=lev(k,x);if(v<bd){bd=v;b=i}}});return b};
+
+/* saved batch (IndexedDB) so nothing is lost on refresh */
+const idb=new Promise(r=>{try{const q=indexedDB.open('bsg',1);q.onupgradeneeded=()=>q.result.createObjectStore('s',{keyPath:'k'});q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+const tx=async(m,f)=>{const d=await idb;if(!d)return;return new Promise(r=>{try{const t=d.transaction('s',m),q=f(t.objectStore('s'));t.oncomplete=()=>r(q&&q.result);t.onerror=()=>r()}catch(e){r()}})};
+const dbPut=e=>tx('readwrite',s=>s.put(e)),dbDel=k=>tx('readwrite',s=>s.delete(k)),dbAll=()=>tx('readonly',s=>s.getAll()),dbClr=()=>tx('readwrite',s=>s.clear());
+const batch=new Map();
+try{$('#roster').value=localStorage.getItem('roster')||''}catch(e){}
+
+function li(ul,text,cls){const l=document.createElement('li');l.textContent=text;if(cls)l.className=cls;ul.appendChild(l);return l}
+const parse=l=>{const m=l.match(/^(.*\S)\s*[,|]\s*(?:class\s*)?(\d{1,2})\s*$/i);return m?{n:m[1],c:m[2]}:{n:l,c:''}};
+const same=(r,d)=>key(r.n)===key(d.student_name)&&(!r.c||r.c===String(d.class||''));
+function draw(){
+  const lines=$('#roster').value.split('\n').map(s=>s.trim()).filter(Boolean),R=lines.map(parse),rk=R.map(r=>key(r.n));
+  const got=[...batch.values()],gk=got.map(e=>key(e.d.student_name));
+  const pend=lines.filter((l,i)=>!got.some(e=>same(R[i],e.d)));
+  const pl=$('#pl'),gl=$('#gl');pl.innerHTML='';gl.innerHTML='';
+  pend.forEach(n=>{const i=near(key(parse(n).n),gk);li(pl,n+(i!==null?` (shayad "${got[i].d.student_name}" ne bheja \u2013 spelling/class check karein)`:''))});
+  got.forEach(e=>{const d=e.d,on=!R.length||R.some(r=>same(r,d));
+    let t=`${d.student_name} (Class ${d.class||'?'}) \u2013 ${d.game} \u2013 ****${d.aadhaar.slice(-4)} \u2013 ${d.mobile}`;
+    if(!on){const i=near(key(d.student_name),rk);t+=' \u26a0 list mein naam/class nahi'+(i!==null?` (shayad "${lines[i]}")`:'')}
+    const l=li(gl,t,on?'':'er'),b=document.createElement('button');b.textContent='\u2715';b.title='Hatayein';b.onclick=()=>{batch.delete(e.k);dbDel(e.k);draw()};l.appendChild(b)});
+  const total=lines.length,done=total-pend.length;
+  $('#sum').textContent=total?`${done}/${total} mil gaye, ${pend.length} baaki. Kul zip: ${got.length}`:`${got.length} zip mil gayi (class ki list daalein to baaki dikhega)`;
+  $('#pg').max=total||1;$('#pg').value=done;
+  $('#exp').disabled=!got.length;$('#exp').textContent=`Download batch zip (${got.length} students)`;
+  $('#cp').hidden=!pend.length;$('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(`Baaki bachche (${pend.length}):\n`+pend.map((n,i)=>`${i+1}. ${n}`).join('\n'));$('#bmsg').textContent='Baaki list copy ho gayi.'}catch(x){$('#bmsg').textContent='Copy nahi hua, list ko select karke copy karein.'}};
+}
+$('#roster').oninput=()=>{try{localStorage.setItem('roster',$('#roster').value)}catch(e){}draw()};
+
+$('#zips').onchange=async e=>{
+  const files=[...e.target.files],bad=[];let n=0;
+  for(const f of files){
+    $('#bmsg').textContent=`Padh rahe hain ${n+bad.length+1}/${files.length}\u2026`;
+    try{
+      const z=await JSZip.loadAsync(f),d=JSON.parse(await z.file('data.json').async('string')),im={};
+      if(!d.aadhaar||!d.student_name)throw 0;
+      for(const k of KEYS)im[k]=await z.file(k+'.jpg').async('blob');
+      const en={k:d.aadhaar,d,im};batch.set(d.aadhaar,en);await dbPut(en);n++;
+    }catch(x){bad.push(f.name)}
+  }
+  e.target.value='';draw();
+  $('#bmsg').textContent=`${n} file judi.`+(bad.length?` Padh nahi payi: ${bad.join(', ')}`:'');
+};
+$('#clr').onclick=async()=>{if(!confirm('Sab entries is browser se hata dein?'))return;batch.clear();await dbClr();draw();$('#bmsg').textContent='Sab hata diya.'};
+$('#exp').onclick=async()=>{
+  const z=new JSZip(),q=v=>'"'+String(v).replace(/"/g,'""')+'"',rows=[COLS.join(',')];
+  batch.forEach(({d,im})=>{
+    const id=[slug(d.student_name),d.class?'class'+d.class:'',d.aadhaar.slice(-4)].filter(Boolean).join('_');
+    const p={photo:`photos/${id}.jpg`,aadhaar_front:`aadhaar/${id}_front.jpg`,aadhaar_back:`aadhaar/${id}_back.jpg`};
+    for(const k in p)z.file(p[k],im[k]);
+    rows.push(COLS.map(c=>q(c in p?p[c]:d[c])).join(','));
+  });
+  z.file('students.csv','\ufeff'+rows.join('\r\n'));
+  const a=document.createElement('a');a.href=URL.createObjectURL(await z.generateAsync({type:'blob'}));a.download='bihar_students_batch.zip';
+  document.body.appendChild(a);a.click();a.remove();
+  $('#bmsg').textContent='Zip taiyar. Extract karke register_students.py usi folder mein chalayein.';
+};
+$('#mk').onclick=()=>{
+  const u=$('#su').value.trim(),c=$('#sc').value.trim(),m=$('#lkm'),el=$('#lk');
+  m.className='er';m.textContent='';
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(u)){m.textContent='Web app URL sahi nahi hai (.../exec par khatam hona chahiye)';return}
+  if(!c){m.textContent='Access code likhein';return}
+  const b=base();if(!b){m.textContent=BADBASE;return}
+  el.value=b+'#u='+encodeURIComponent(u)+'&c='+encodeURIComponent(c);el.hidden=false;el.select();
+  m.className='ok';m.textContent='Yeh link bachchon ko bhejein (copy kar lein):';
+};
+$('#mw').onclick=()=>{
+  const raw=$('#wn').value.trim(),n=raw.replace(/\D/g,''),m=$('#wm'),el=$('#wl');
+  m.className='er';m.textContent='';
+  if(raw&&!/^\d{11,15}$/.test(n)){m.textContent='Number country code ke saath 11-15 digit ka hona chahiye (jaise 919876543210)';return}
+  const b=base();if(!b){m.textContent=BADBASE;return}
+  el.value=b+(n?'#w='+n:'');el.hidden=false;el.select();
+  m.className='ok';m.textContent='Yeh link bachchon ko bhejein (copy kar lein):';
+};
+(async()=>{(await dbAll()||[]).forEach(e=>batch.set(e.k,e));draw()})();
+</script>
+</body>
+</html>

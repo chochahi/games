@@ -1,0 +1,11 @@
+# Never commit student data
+students.csv
+images/
+photos/
+aadhaar/
+proof/
+videos/
+pw_profile/
+*.zip
+__pycache__/
+.DS_Store
