@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student Registration – Bihar School Games</title>
+<style>
+:root{--bg:#f5f6fa;--cd:#fff;--tx:#1b1e2b;--mu:#6b7185;--bd:#d9dcea;--ac:#4f46e5;--bt:#fff;--ok:#15803d;--er:#b91c1c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}}
+:root[data-theme="dark"]{--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin:22px 0 8px;border-bottom:1px solid var(--bd);padding-bottom:6px}
+p.s{color:var(--mu);margin:0 0 12px;font-size:14px}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}label i{color:var(--er);font-style:normal}
+textarea,select,input[type=text],input[type=email],input[type=date],input[type=tel]{width:100%;padding:10px 12px;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px}
+.rd label{display:inline-block;font-weight:400;margin-right:16px;padding-top:8px}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--cd);color:var(--ac);cursor:pointer}
+button.p{background:var(--ac);color:var(--bt)}button:disabled{opacity:.5}
+.tabs button.on{background:var(--ac);color:var(--bt)}
+.im{border:1px dashed var(--bd);border-radius:10px;padding:12px}.im img{display:block;max-width:100%;max-height:150px;margin:8px 0;border-radius:6px}
+a.btn{display:inline-block;text-decoration:none;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--ac);color:var(--bt)}
+small{color:var(--mu)}.ok{color:var(--ok)}.er{color:var(--er)}
+#err{display:none;border:1px solid var(--er);color:var(--er);border-radius:8px;padding:10px 14px;margin-top:14px}
+#err li{margin-left:16px}
+ul.l{list-style:none;padding:0;margin:10px 0}ul.l li{padding:6px 0;border-bottom:1px solid var(--bd);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>Student Registration <small>/ छात्र पंजीकरण</small></h1>
+<p class="s">Bihar School Games. Form bharein, photo upload karein (apne aap 200KB se chhoti ho jayegi) aur Submit dabayein.</p>
+
+<section id="s1">
+  <div class="card">
+    <h2 style="margin-top:0">Student details</h2><div class="g" id="f1"></div>
+    <h2>Bank details</h2><div class="g" id="f2"></div>
+    <small>Beneficiary name student, mother ya father ke naam se match karna chahiye.</small>
+    <h2>Photo &amp; Aadhaar</h2><div class="g" id="ims"></div>
+    <div id="err"></div>
+    <p><button class="p" id="sub">Submit</button></p>
+    <div id="done"></div>
+  </div>
+</section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const LIMIT=190000; // bytes, ~185-190 KB target (site limit 200 KB)
+const F1=[['student_name',"Student's Full Name",'Ex - Ravi Kumar'],['class'],['gender'],['aadhaar','Aadhaar Number','Ex - 123456789012','numeric',12],['dob'],['mother_name',"Mother's Full Name",'Ex - Sunita Devi'],['father_name',"Father's Full Name",'Ex - Ramesh Kumar'],['mobile','Parent/Guardian Mobile Number','Ex - 9876543210','numeric',10],['email','E-Mail Id (optional)','name@example.com'],['game','Select Your Game','Ex - Athletics']];
+const F2=[['beneficiary_name','Beneficiary Name','Ex - Ramesh Kumar'],['account_number','Account Number','Ex - 123456789012','numeric',20],['ifsc','IFSC Code','Ex - SBIN0001234','text',11]];
+const IM=[['photo','Player Photo (passport size)',1000],['aadhaar_front','Aadhaar – Front',1800],['aadhaar_back','Aadhaar – Back',1800]];
+const COLS='student_name,gender,aadhaar,dob,mother_name,father_name,mobile,email,game,beneficiary_name,account_number,ifsc,photo,aadhaar_front,aadhaar_back'.split(',');
+const TEACHER_WHATSAPP=''; // teacher ka WhatsApp number: country code ke saath, bina + ya space ke. Khaali chhodne par bachche khud contact chunenge.
+const imgs={};
+const H=new URLSearchParams(location.hash.slice(1)),ENDPOINT=H.get('u')||'',CODE=H.get('c')||'',WA=(H.get('w')||TEACHER_WHATSAPP).replace(/\D/g,'');
+if(!ENDPOINT)document.querySelector('p.s').textContent='Bihar School Games. Form bharein, photo upload karein (apne aap 200KB se chhoti ho jayegi). Submit dabane par ek zip file banegi; use WhatsApp se apne teacher ko bhejein.';
+const CLASSES=['1','2','3','4','5','6','7','8','9','10','11','12'];
+const AGE_REF=new Date(2027,2,1); // portal ka "Age as on 1st March 2027"
+const CATS=[['U-14',13],['U-16',15]]; // [category, us category ki max poori umar]. Under-N = umar N se kam (ANUMAAN: portal se verify karein)
+// [game, eligible categories, eligible genders]
+const GAMES=[
+['Football',['U-14','U-16'],['Boy']],
+['Kabaddi',['U-14','U-16'],['Boy','Girl']],
+['Volleyball',['U-16'],['Boy']],
+['Cycling (3km)',['U-14'],['Boy','Girl']],
+['Cycling (5km)',['U-16'],['Boy','Girl']],
+['Long Jump (Athletics)',['U-14','U-16'],['Boy','Girl']],
+['60m Sprint (Athletics)',['U-14'],['Boy','Girl']],
+['100m Sprint (Athletics)',['U-16'],['Boy','Girl']],
+['600m Long Run (Athletics)',['U-14'],['Boy','Girl']],
+['800m Long Run (Athletics)',['U-16'],['Boy','Girl']]
+];
+const ageOn=iso=>{if(!iso)return null;const [y,m,dd]=iso.split('-').map(Number),M=AGE_REF.getMonth()+1;let a=AGE_REF.getFullYear()-y;if(M<m||(M===m&&AGE_REF.getDate()<dd))a--;return a};
+const catOf=a=>{if(a===null||a<0)return '';const c=CATS.find(x=>a<=x[1]);return c?c[0]:''};
+
+function field(x){
+  const [k,l,p,m,n]=x, opt=/optional/.test(l||'');
+  if(k==='gender')return '<div class="rd"><label>Gender <i>*</i></label><label><input type="radio" name="gender" value="Girl"> Girl</label><label><input type="radio" name="gender" value="Boy"> Boy</label></div>';
+  if(k==='dob')return '<div><label>Date of Birth <i>*</i></label><input type="date" id="dob"></div>';
+  if(k==='class')return '<div><label for="class">Class <i>*</i></label><select id="class"><option value="">Select...</option>'+CLASSES.map(c=>`<option>${c}</option>`).join('')+'</select></div>';
+  if(k==='game')return '<div><label for="game">Select Your Game <i>*</i></label><select id="game"><option value="">Pehle gender aur date of birth chunein</option></select><small id="catinfo"></small></div>';
+  return `<div><label for="${k}">${l}${opt?'':' <i>*</i>'}</label><input type="${k==='email'?'email':'text'}" id="${k}" placeholder="${p}"${m?` inputmode="${m}"`:''}${n?` maxlength="${n}"`:''}></div>`;
+}
+$('#f1').innerHTML=F1.map(field).join('');
+$('#f2').innerHTML=F2.map(field).join('');
+function refreshGames(){
+  const sel=$('#game'),info=$('#catinfo'),r=document.querySelector('input[name=gender]:checked'),g=r?r.value:'',iso=$('#dob').value;
+  const age=ageOn(iso),cat=catOf(age),prev=sel.value;
+  info.className='';info.textContent='';
+  if(!g||!iso){sel.innerHTML='<option value="">Pehle gender aur date of birth chunein</option>';return}
+  if(!cat){sel.innerHTML='<option value="">Koi game eligible nahi</option>';info.className='er';info.textContent=`1 March 2027 ko umar ${age} saal hai: U-14 ya U-16 category mein nahi aata.`;return}
+  const ok=GAMES.filter(x=>x[1].includes(cat)&&x[2].includes(g));
+  sel.innerHTML='<option value="">Select...</option>'+ok.map(x=>`<option>${x[0]}</option>`).join('');
+  if(ok.some(x=>x[0]===prev))sel.value=prev;
+  info.textContent=`Umar (1 March 2027 ko): ${age} saal. Category: ${cat}. Sirf eligible games dikh rahe hain.`;
+}
+refreshGames();$('#f1').addEventListener('change',refreshGames);
+$('#ims').innerHTML=IM.map(([k,l])=>`<div class="im"><label>${l} <i>*</i></label><input type="file" accept="image/*" data-k="${k}"><button type="button" data-cam="${k}" style="margin-top:8px">\uD83D\uDCF7 Camera se photo lein</button><input type="file" accept="image/*" capture="${k==='photo'?'user':'environment'}" data-k="${k}" hidden><img hidden alt=""><small></small><small style="display:block">Limit: 200 KB (apne aap adjust hoti hai)</small></div>`).join('');
+document.querySelectorAll('button[data-cam]').forEach(b=>b.onclick=()=>b.parentNode.querySelector('input[capture]').click());
+
+/* ---- image compression: keeps quality as high as possible while staying under LIMIT ---- */
+async function compress(file,maxSide){
+  const bmp=await createImageBitmap(file);
+  for(let r=0;r<10;r++){
+    const sc=Math.min(1,maxSide/Math.max(bmp.width,bmp.height));
+    const w=Math.round(bmp.width*sc),h=Math.round(bmp.height*sc);
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(bmp,0,0,w,h);
+    const tb=q=>new Promise(res=>c.toBlob(res,'image/jpeg',q));
+    const hi=await tb(0.92);if(hi.size<=LIMIT)return hi;
+    let best=await tb(0.35);
+    if(best.size>LIMIT){maxSide=Math.round(maxSide*0.8);continue;}
+    let a=0.35,b=0.92;
+    for(let i=0;i<8;i++){const m=(a+b)/2,t=await tb(m);if(t.size<=LIMIT){best=t;a=m}else b=m}
+    return best;
+  }
+  throw new Error('Image compress nahi ho payi');
+}
+/* ---- crop screen: returns cropped Blob, the original file (no crop) or null (cancel) ---- */
+function cropImage(file){
+  return new Promise(async(resolve,reject)=>{
+    let bmp;try{bmp=await createImageBitmap(file)}catch(e){return reject(e)}
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))';
+    const tip=document.createElement('div');tip.style.cssText='color:#fff;font-size:14px;text-align:center';tip.textContent='Box ko kheench kar hilayein, kone pakad kar chhota/bada karein';
+    const cv=document.createElement('canvas');cv.style.cssText='touch-action:none;max-width:100%;border-radius:6px;background:#000';
+    const bar=document.createElement('div');bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+    const mk=(t,c)=>{const x=document.createElement('button');x.type='button';x.textContent=t;if(c)x.className=c;bar.appendChild(x);return x};
+    const bOk=mk('\u2702 Crop karke use karein','p'),bFull=mk('Poori photo use karein'),bNo=mk('Cancel');
+    ov.append(tip,cv,bar);document.body.appendChild(ov);
+    const sc=Math.min((innerWidth-24)/bmp.width,(innerHeight-170)/bmp.height);
+    const W=Math.max(50,Math.round(bmp.width*sc)),H=Math.max(50,Math.round(bmp.height*sc));
+    cv.width=W;cv.height=H;cv.style.width=W+'px';cv.style.height=H+'px';
+    const ctx=cv.getContext('2d'),MIN=40;
+    let r={x:W*.05,y:H*.05,w:W*.9,h:H*.9},mode=null,anchor=null,off=null;
+    const draw=()=>{
+      ctx.drawImage(bmp,0,0,W,H);
+      ctx.fillStyle='rgba(0,0,0,.55)';
+      ctx.fillRect(0,0,W,r.y);ctx.fillRect(0,r.y+r.h,W,H-r.y-r.h);ctx.fillRect(0,r.y,r.x,r.h);ctx.fillRect(r.x+r.w,r.y,W-r.x-r.w,r.h);
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);
+      ctx.fillStyle='#fff';
+      [[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].forEach(([x,y])=>ctx.fillRect(x-7,y-7,14,14));
+    };
+    const pos=e=>{const b=cv.getBoundingClientRect();return{x:Math.min(W,Math.max(0,(e.clientX-b.left)*W/b.width)),y:Math.min(H,Math.max(0,(e.clientY-b.top)*H/b.height))}};
+    const corners=()=>[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]];
+    cv.onpointerdown=e=>{
+      const p=pos(e);cv.setPointerCapture(e.pointerId);
+      const c=corners(),i=c.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<28);
+      if(i>=0){mode='size';anchor={x:c[3-i][0],y:c[3-i][1]}}
+      else if(p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h){mode='move';off={x:p.x-r.x,y:p.y-r.y}}
+      else{mode='size';anchor={x:p.x,y:p.y}}
+    };
+    cv.onpointermove=e=>{
+      if(!mode)return;const p=pos(e);
+      if(mode==='move'){r.x=Math.min(W-r.w,Math.max(0,p.x-off.x));r.y=Math.min(H-r.h,Math.max(0,p.y-off.y))}
+      else{
+        let x=Math.min(anchor.x,p.x),y=Math.min(anchor.y,p.y),w=Math.abs(p.x-anchor.x),h=Math.abs(p.y-anchor.y);
+        if(w<MIN){w=MIN;x=p.x<anchor.x?anchor.x-MIN:anchor.x;if(x+w>W)x=W-w}
+        if(h<MIN){h=MIN;y=p.y<anchor.y?anchor.y-MIN:anchor.y;if(y+h>H)y=H-h}
+        r={x,y,w,h};
+      }
+      draw();
+    };
+    cv.onpointerup=cv.onpointercancel=()=>{mode=null};
+    const done=v=>{ov.remove();try{bmp.close()}catch(e){}resolve(v)};
+    bOk.onclick=()=>{
+      const sw=Math.round(r.w/sc),sh=Math.round(r.h/sc),c=document.createElement('canvas');c.width=sw;c.height=sh;
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,sw,sh);x.drawImage(bmp,r.x/sc,r.y/sc,sw,sh,0,0,sw,sh);
+      c.toBlob(bl=>done(bl),'image/jpeg',0.95);
+    };
+    bFull.onclick=()=>done(file);
+    bNo.onclick=()=>done(null);
+    draw();
+  });
+}
+document.querySelectorAll('input[type=file][data-k]').forEach(inp=>inp.addEventListener('change',async()=>{
+  const k=inp.dataset.k,f=inp.files[0],box=inp.parentNode,im=box.querySelector('img'),sm=box.querySelector('small');
+  if(!f)return;
+  try{
+    const src=await cropImage(f);
+    if(!src){inp.value='';return}
+    sm.className='';sm.textContent='Compress ho rahi hai\u2026';
+    const b=await compress(src,IM.find(i=>i[0]===k)[2]);
+    if(b.size>LIMIT)throw new Error('size limit');
+    imgs[k]=b;im.src=URL.createObjectURL(b);im.hidden=false;
+    sm.className='ok';sm.textContent=`\u2713 ${(b.size/1000).toFixed(0)} KB (pehle ${(f.size/1000).toFixed(0)} KB)`;
+  }catch(e){delete imgs[k];im.hidden=true;sm.className='er';sm.textContent='Sirf image (JPG/PNG) chunein';}
+  inp.value='';
+}));
+
+/* ---- form ---- */
+const norm=s=>s.trim().replace(/\s+/g,' ').toLowerCase();
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'student';
+function collect(){
+  const d={};
+  [...F1,...F2].forEach(([k])=>{if(k==='gender'){const r=document.querySelector('input[name=gender]:checked');d.gender=r?r.value:''}else if(k==='dob'){const v=$('#dob').value;d.dob=v?v.split('-').reverse().join('/'):''}else d[k]=$('#'+k).value.trim().replace(/\s+/g,' ')});
+  d.ifsc=d.ifsc.toUpperCase();d.category=catOf(ageOn($('#dob').value));return d;
+}
+function validate(d){
+  const e=[];
+  if(!d.student_name)e.push("Student's name likhein");
+  if(!d.class)e.push('Class chunein');
+  if(!d.gender)e.push('Gender chunein');
+  if(!/^\d{12}$/.test(d.aadhaar))e.push('Aadhaar 12 digit ka hona chahiye');
+  if(!d.dob)e.push('Date of birth chunein');
+  if(!d.mother_name)e.push("Mother's name likhein");
+  if(!d.father_name)e.push("Father's name likhein");
+  if(!/^\d{10}$/.test(d.mobile))e.push('Mobile number 10 digit ka hona chahiye');
+  if(d.email&&!/^\S+@\S+\.\S+$/.test(d.email))e.push('Email sahi nahi hai');
+  if(d.dob&&!d.category)e.push(`Is DOB par 1 March 2027 ko umar ${ageOn($('#dob').value)} saal hai: U-14/U-16 category mein nahi aata`);
+  if(!d.game)e.push('Apna game chunein');
+  else{const x=GAMES.find(y=>y[0]===d.game);if(!x||!x[1].includes(d.category)||!x[2].includes(d.gender))e.push('Chuna hua game is gender aur age category ke liye eligible nahi hai')}
+  if(!d.beneficiary_name)e.push('Beneficiary name likhein');
+  else if(![d.student_name,d.mother_name,d.father_name].map(norm).includes(norm(d.beneficiary_name)))e.push('Beneficiary name student/mother/father ke naam se match karna chahiye');
+  if(!/^\d{9,18}$/.test(d.account_number))e.push('Account number sahi nahi hai (sirf digits)');
+  if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d.ifsc))e.push('IFSC code sahi nahi hai (jaise SBIN0001234)');
+  IM.forEach(([k,l])=>{if(!imgs[k])e.push(l+' upload karein')});
+  return e;
+}
+async function save(filename,data){
+  const dl=(typeof claude!=='undefined')?await claude.use('downloads'):null;
+  if(dl)return dl.save({filename,data});
+  const a=document.createElement('a');a.href=URL.createObjectURL(data);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+}
+async function upload(d){
+  const btn=$('#sub'),dn=$('#done'),msg=(c,t)=>{const m=document.createElement('p');m.className=c;m.textContent=t;dn.replaceChildren(m)};
+  btn.disabled=true;msg('','Bhej rahe hain… thoda time lag sakta hai, page band na karein.');
+  let j;
+  try{
+    const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(b)});
+    const images={};for(const [k] of IM)images[k]=await b64(imgs[k]);
+    const res=await fetch(ENDPOINT,{method:'POST',body:JSON.stringify({...d,code:CODE,images})});
+    j=await res.json();
+  }catch(x){btn.disabled=false;msg('er','Server tak nahi pahunch paya. Backup file download ho rahi hai, use teacher ko bhejein.');return false}
+  btn.disabled=false;
+  if(!j.ok){msg('er','Nahi bheja ja saka: '+j.error);return true}
+  msg('ok',`✓ ${d.student_name} ka registration teacher tak pahunch gaya. Dobara bhejne ki zaroorat nahi.`);return true;
+}
+$('#sub').onclick=async()=>{
+  const d=collect(),e=validate(d),box=$('#err');
+  if(e.length){box.style.display='block';box.innerHTML='<b>Pehle yeh theek karein:</b><ul>'+e.map(x=>`<li>${x}</li>`).join('')+'</ul>';box.scrollIntoView({block:'center'});return}
+  box.style.display='none';
+  if(ENDPOINT&&await upload(d))return;
+  try{
+    if(typeof JSZip==='undefined')throw new Error('JSZip load nahi hua');
+    const z=new JSZip();z.file('data.json',JSON.stringify(d,null,1));
+    IM.forEach(([k])=>z.file(k+'.jpg',imgs[k]));
+    const blob=await z.generateAsync({type:'blob'});
+    const fn=`${slug(d.student_name)}_class${d.class}_${d.aadhaar.slice(-4)}.zip`;await save(fn,blob);
+    const m=document.createElement('p');m.className='ok';m.textContent=`✓ File save ho gayi: ${fn}. Ise teacher ko bhejein aur message mein apna naam (${d.student_name}), class (${d.class}) aur game (${d.game}) likhein.`;$('#done').replaceChildren(m);
+    const zf=new File([blob],fn,{type:'application/zip'});
+    const wt=`Namaste, registration file bhej raha/rahi hoon: ${fn}\nNaam: ${d.student_name}, Class: ${d.class}, Game: ${d.game}`;
+    const bx=document.createElement('p'),nt=document.createElement('p');nt.className='er';
+    if(navigator.canShare&&navigator.canShare({files:[zf]})){const sb=document.createElement('button');sb.className='p';sb.textContent='Share karein (file ke saath)';
+      sb.onclick=async()=>{try{await navigator.share({files:[zf],title:fn,text:wt})}catch(e){if(e.name!=='AbortError')nt.textContent='Share nahi ho paya. Neeche WhatsApp wala button use karein.'}};bx.appendChild(sb);bx.append(' ')}
+    const wa=document.createElement('a');wa.className='btn';wa.target='_blank';wa.rel='noopener';wa.href='https://wa.me/'+WA+'?text='+encodeURIComponent(wt);wa.textContent=WA?'WhatsApp par teacher ki chat kholein':'WhatsApp kholein';bx.appendChild(wa);
+    const ins=document.createElement('p');ins.className='s';ins.textContent=`WhatsApp khulne par \uD83D\uDCCE (attach) > Document dabayein aur Downloads folder se "${fn}" chunkar bhej dein.`;
+    $('#done').append(bx,ins,nt);
+  }catch(x){if(x&&x.code==='declined')return;$('#done').innerHTML='<p class="er">File save nahi ho payi. Dobara try karein ya Chrome mein kholein.</p>'}
+};
+
+</script>
+</body>
+</html>
