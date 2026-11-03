@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Student Registration – Bihar School Games</title>
+<style>
+:root{--bg:#f5f6fa;--cd:#fff;--tx:#1b1e2b;--mu:#6b7185;--bd:#d9dcea;--ac:#4f46e5;--bt:#fff;--ok:#15803d;--er:#b91c1c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}}
+:root[data-theme="dark"]{--bg:#12141c;--cd:#1c1f2b;--tx:#eceef6;--mu:#9aa1b8;--bd:#2c3040;--ac:#818cf8;--bt:#12141c;--ok:#4ade80;--er:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin:22px 0 8px;border-bottom:1px solid var(--bd);padding-bottom:6px}
+p.s{color:var(--mu);margin:0 0 12px;font-size:14px}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:4px}label i{color:var(--er);font-style:normal}
+textarea,select,input[type=text],input[type=email],input[type=date],input[type=tel]{width:100%;padding:10px 12px;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px}
+.rd label{display:inline-block;font-weight:400;margin-right:16px;padding-top:8px}
+button{font:inherit;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--cd);color:var(--ac);cursor:pointer}
+button.p{background:var(--ac);color:var(--bt)}button:disabled{opacity:.5}
+.tabs button.on{background:var(--ac);color:var(--bt)}
+.im{border:1px dashed var(--bd);border-radius:10px;padding:12px}.im img{display:block;max-width:100%;max-height:150px;margin:8px 0;border-radius:6px}
+a.btn{display:inline-block;text-decoration:none;font-weight:600;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--ac);color:var(--bt)}
+small{color:var(--mu)}.ok{color:var(--ok)}.er{color:var(--er)}
+#err{display:none;border:1px solid var(--er);color:var(--er);border-radius:8px;padding:10px 14px;margin-top:14px}
+#err li{margin-left:16px}
+ul.l{list-style:none;padding:0;margin:10px 0}ul.l li{padding:6px 0;border-bottom:1px solid var(--bd);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+<h1>Student Registration <small>/ छात्र पंजीकरण</small></h1>
+<p class="s">Bihar School Games. Form bharein, photo upload karein (apne aap 200KB se chhoti ho jayegi) aur Submit dabayein.</p>
+
+<section id="s1">
+  <div class="card">
+    <h2 style="margin-top:0">Student details</h2><div class="g" id="f1"></div>
+    <h2>Bank details</h2><div class="g" id="f2"></div>
+    <small>Beneficiary name student, mother ya father ke naam se match karna chahiye.</small>
+    <h2>Photo &amp; Aadhaar</h2><div class="g" id="ims"></div>
+    <div id="err"></div>
+    <p><button class="p" id="sub">Submit</button></p>
+    <div id="done"></div>
+  </div>
+</section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const LIMIT=190000; // bytes, ~185-190 KB target (site limit 200 KB)
+const F1=[['student_name',"Student's Full Name",'Ex - Ravi Kumar'],['class'],['gender'],['aadhaar','Aadhaar Number','Ex - 123456789012','numeric',12],['dob'],['mother_name',"Mother's Full Name",'Ex - Sunita Devi'],['father_name',"Father's Full Name",'Ex - Ramesh Kumar'],['mobile','Parent/Guardian Mobile Number','Ex - 9876543210','numeric',10],['email','E-Mail Id (optional)','name@example.com'],['game','Select Your Game','Ex - Athletics']];
+const F2=[['beneficiary_name','Beneficiary Name','Ex - Ramesh Kumar'],['account_number','Account Number','Ex - 123456789012','numeric',20],['ifsc','IFSC Code','Ex - SBIN0001234','text',11]];
+const IM=[['photo','Player Photo (passport size)',1000],['aadhaar_front','Aadhaar – Front',1800],['aadhaar_back','Aadhaar – Back',1800]];
+const COLS='student_name,gender,aadhaar,dob,mother_name,father_name,mobile,email,game,beneficiary_name,account_number,ifsc,photo,aadhaar_front,aadhaar_back'.split(',');
+const TEACHER_WHATSAPP=''; // teacher ka WhatsApp number: country code ke saath, bina + ya space ke. Khaali chhodne par bachche khud contact chunenge.
+const imgs={};
+const H=new URLSearchParams(location.hash.slice(1)),ENDPOINT=H.get('u')||'',CODE=H.get('c')||'',WA=(H.get('w')||TEACHER_WHATSAPP).replace(/\D/g,'');
+if(!ENDPOINT)document.querySelector('p.s').textContent='Bihar School Games. Form bharein, photo upload karein (apne aap 200KB se chhoti ho jayegi). Submit dabane par ek zip file banegi; use WhatsApp se apne teacher ko bhejein.';
+const CLASSES=['1','2','3','4','5','6','7','8','9','10','11','12'];
+const AGE_REF=new Date(2027,2,1); // portal ka "Age as on 1st March 2027"
+const CATS=[['U-14',13],['U-16',15]]; // [category, us category ki max poori umar]. Under-N = umar N se kam (ANUMAAN: portal se verify karein)
+// [game, eligible categories, eligible genders]
+const GAMES=[
+['Football',['U-14','U-16'],['Boy']],
+['Kabaddi',['U-14','U-16'],['Boy','Girl']],
+['Volleyball',['U-16'],['Boy']],
+['Cycling (3km)',['U-14'],['Boy','Girl']],
+['Cycling (5km)',['U-16'],['Boy','Girl']],
+['Long Jump (Athletics)',['U-14','U-16'],['Boy','Girl']],
+['60m Sprint (Athletics)',['U-14'],['Boy','Girl']],
+['100m Sprint (Athletics)',['U-16'],['Boy','Girl']],
+['600m Long Run (Athletics)',['U-14'],['Boy','Girl']],
+['800m Long Run (Athletics)',['U-16'],['Boy','Girl']]
+];
+const ageOn=iso=>{if(!iso)return null;const [y,m,dd]=iso.split('-').map(Number),M=AGE_REF.getMonth()+1;let a=AGE_REF.getFullYear()-y;if(M<m||(M===m&&AGE_REF.getDate()<dd))a--;return a};
+const catOf=a=>{if(a===null||a<0)return '';const c=CATS.find(x=>a<=x[1]);return c?c[0]:''};
+
+function field(x){
+  const [k,l,p,m,n]=x, opt=/optional/.test(l||'');
+  if(k==='gender')return '<div class="rd"><label>Gender <i>*</i></label><label><input type="radio" name="gender" value="Girl"> Girl</label><label><input type="radio" name="gender" value="Boy"> Boy</label></div>';
+  if(k==='dob')return '<div><label>Date of Birth <i>*</i></label><input type="date" id="dob"></div>';
+  if(k==='class')return '<div><label for="class">Class <i>*</i></label><select id="class"><option value="">Select...</option>'+CLASSES.map(c=>`<option>${c}</option>`).join('')+'</select></div>';
+  if(k==='game')return '<div><label for="game">Select Your Game <i>*</i></label><select id="game"><option value="">Pehle gender aur date of birth chunein</option></select><small id="catinfo"></small></div>';
+  return `<div><label for="${k}">${l}${opt?'':' <i>*</i>'}</label><input type="${k==='email'?'email':'text'}" id="${k}" placeholder="${p}"${m?` inputmode="${m}"`:''}${n?` maxlength="${n}"`:''}></div>`;
+}
+$('#f1').innerHTML=F1.map(field).join('');
+$('#f2').innerHTML=F2.map(field).join('');
+function refreshGames(){
+  const sel=$('#game'),info=$('#catinfo'),r=document.querySelector('input[name=gender]:checked'),g=r?r.value:'',iso=$('#dob').value;
+  const age=ageOn(iso),cat=catOf(age),prev=sel.value;
+  info.className='';info.textContent='';
+  if(!g||!iso){sel.innerHTML='<option value="">Pehle gender aur date of birth chunein</option>';return}
+  if(!cat){sel.innerHTML='<option value="">Koi game eligible nahi</option>';info.className='er';info.textContent=`1 March 2027 ko umar ${age} saal hai: U-14 ya U-16 category mein nahi aata.`;return}
+  const ok=GAMES.filter(x=>x[1].includes(cat)&&x[2].includes(g));
+  sel.innerHTML='<option value="">Select...</option>'+ok.map(x=>`<option>${x[0]}</option>`).join('');
+  if(ok.some(x=>x[0]===prev))sel.value=prev;
+  info.textContent=`Umar (1 March 2027 ko): ${age} saal. Category: ${cat}. Sirf eligible games dikh rahe hain.`;
+}
+refreshGames();$('#f1').addEventListener('change',refreshGames);
+$('#ims').innerHTML=IM.map(([k,l])=>`<div class="im"><label>${l} <i>*</i></label><input type="file" accept="image/*" data-k="${k}"><button type="button" data-cam="${k}" style="margin-top:8px">\uD83D\uDCF7 Camera se photo lein</button><input type="file" accept="image/*" capture="${k==='photo'?'user':'environment'}" data-k="${k}" hidden><img hidden alt=""><small></small><small style="display:block">Limit: 200 KB (apne aap adjust hoti hai)</small></div>`).join('');
+document.querySelectorAll('button[data-cam]').forEach(b=>b.onclick=()=>b.parentNode.querySelector('input[capture]').click());
+
+/* ---- image compression: keeps quality as high as possible while staying under LIMIT ---- */
+async function compress(file,maxSide){
+  const bmp=await createImageBitmap(file);
+  for(let r=0;r<10;r++){
+    const sc=Math.min(1,maxSide/Math.max(bmp.width,bmp.height));
+    const w=Math.round(bmp.width*sc),h=Math.round(bmp.height*sc);
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(bmp,0,0,w,h);
+    const tb=q=>new Promise(res=>c.toBlob(res,'image/jpeg',q));
+    const hi=await tb(0.92);if(hi.size<=LIMIT)return hi;
+    let best=await tb(0.35);
+    if(best.size>LIMIT){maxSide=Math.round(maxSide*0.8);continue;}
+    let a=0.35,b=0.92;
+    for(let i=0;i<8;i++){const m=(a+b)/2,t=await tb(m);if(t.size<=LIMIT){best=t;a=m}else b=m}
+    return best;
+  }
+  throw new Error('Image compress nahi ho payi');
+}
+
+/* ===== AUTO CROP & STRAIGHTEN: finds the 4 corners of the document and flattens the perspective ===== */
+const autoCropImage=(()=>{
+  const ICONS={"vector-square": [512, 512, "M64 0c23.7 0 44.4 12.9 55.4 32l273.1 0c11.1-19.1 31.7-32 55.4-32 35.3 0 64 28.7 64 64 0 34-26.5 61.8-60 63.9l-2.1 2.9-71.5 99.1c3.6 8 5.6 16.9 5.6 26.2s-2 18.2-5.6 26.2l2.2 3.1 69.3 96 2.1 2.9c33.5 2.1 60 29.9 60 63.9 0 35.3-28.7 64-64 64-23.7 0-44.4-12.9-55.4-32l-273.1 0c-11.1 19.1-31.7 32-55.4 32-35.3 0-64-28.7-64-64 0-23.7 12.9-44.4 32-55.4l0-273.1C12.9 108.4 0 87.7 0 64 0 28.7 28.7 0 64 0zM394.2 413.4l-65.5-90.6-2.2-3.1c-2.1 .2-4.3 .3-6.5 .3-35.3 0-64-28.7-64-64s28.7-64 64-64c2.2 0 4.4 .1 6.5 .3l67.7-93.7c-.6-.9-1.1-1.7-1.6-2.6L119.4 96c-5.6 9.7-13.7 17.8-23.4 23.4l0 273.1c9.7 5.6 17.8 13.7 23.4 23.4l273.1 0c.5-.9 1.1-1.8 1.6-2.6z"], "wand-magic-sparkles": [576, 512, "M263.4-27L278.2 9.8 315 24.6c3 1.2 5 4.2 5 7.4s-2 6.2-5 7.4L278.2 54.2 263.4 91c-1.2 3-4.2 5-7.4 5s-6.2-2-7.4-5L233.8 54.2 197 39.4c-3-1.2-5-4.2-5-7.4s2-6.2 5-7.4L233.8 9.8 248.6-27c1.2-3 4.2-5 7.4-5s6.2 2 7.4 5zM110.7 41.7l21.5 50.1 50.1 21.5c5.9 2.5 9.7 8.3 9.7 14.7s-3.8 12.2-9.7 14.7l-50.1 21.5-21.5 50.1c-2.5 5.9-8.3 9.7-14.7 9.7s-12.2-3.8-14.7-9.7L59.8 164.2 9.7 142.7C3.8 140.2 0 134.4 0 128s3.8-12.2 9.7-14.7L59.8 91.8 81.3 41.7C83.8 35.8 89.6 32 96 32s12.2 3.8 14.7 9.7zM464 304c6.4 0 12.2 3.8 14.7 9.7l21.5 50.1 50.1 21.5c5.9 2.5 9.7 8.3 9.7 14.7s-3.8 12.2-9.7 14.7l-50.1 21.5-21.5 50.1c-2.5 5.9-8.3 9.7-14.7 9.7s-12.2-3.8-14.7-9.7l-21.5-50.1-50.1-21.5c-5.9-2.5-9.7-8.3-9.7-14.7s3.8-12.2 9.7-14.7l50.1-21.5 21.5-50.1c2.5-5.9 8.3-9.7 14.7-9.7zM460 0c11 0 21.6 4.4 29.5 12.2l42.3 42.3C539.6 62.4 544 73 544 84s-4.4 21.6-12.2 29.5l-88.2 88.2-101.3-101.3 88.2-88.2C438.4 4.4 449 0 460 0zM44.2 398.5L308.4 134.3 409.7 235.6 145.5 499.8C137.6 507.6 127 512 116 512s-21.6-4.4-29.5-12.2L44.2 457.5C36.4 449.6 32 439 32 428s4.4-21.6 12.2-29.5z"], "expand": [448, 512, "M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32S0 334.3 0 352l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"], "rotate-left": [512, 512, "M24 192l144 0c9.7 0 18.5-5.8 22.2-14.8s1.7-19.3-5.2-26.2l-46.7-46.7c75.3-58.6 184.3-53.3 253.5 15.9 75 75 75 196.5 0 271.5s-196.5 75-271.5 0c-10.2-10.2-19-21.3-26.4-33-9.5-14.9-29.3-19.3-44.2-9.8s-19.3 29.3-9.8 44.2C49.7 408.7 61.4 423.5 75 437 175 537 337 537 437 437S537 175 437 75C342.8-19.3 193.3-24.7 92.7 58.8L41 7C34.1 .2 23.8-1.9 14.8 1.8S0 14.3 0 24L0 168c0 13.3 10.7 24 24 24z"], "rotate-right": [512, 512, "M488 192l-144 0c-9.7 0-18.5-5.8-22.2-14.8s-1.7-19.3 5.2-26.2l46.7-46.7c-75.3-58.6-184.3-53.3-253.5 15.9-75 75-75 196.5 0 271.5s196.5 75 271.5 0c8.2-8.2 15.5-16.9 21.9-26.1 10.1-14.5 30.1-18 44.6-7.9s18 30.1 7.9 44.6c-8.5 12.2-18.2 23.8-29.1 34.7-100 100-262.1 100-362 0S-25 175 75 75c94.3-94.3 243.7-99.6 344.3-16.2L471 7c6.9-6.9 17.2-8.9 26.2-5.2S512 14.3 512 24l0 144c0 13.3-10.7 24-24 24z"], "check": [448, 512, "M434.8 70.1c14.3 10.4 17.5 30.4 7.1 44.7l-256 352c-5.5 7.6-14 12.3-23.4 13.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l101.5 101.5 234-321.7c10.4-14.3 30.4-17.5 44.7-7.1z"], "xmark": [384, 512, "M55.1 73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L147.2 256 9.9 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192.5 301.3 329.9 438.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.8 256 375.1 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192.5 210.7 55.1 73.4z"], "circle-check": [512, 512, "M256 512a256 256 0 1 1 0-512 256 256 0 1 1 0 512zM374 145.7c-10.7-7.8-25.7-5.4-33.5 5.3L221.1 315.2 169 263.1c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l72 72c5 5 11.8 7.5 18.8 7s13.4-4.1 17.5-9.8L379.3 179.2c7.8-10.7 5.4-25.7-5.3-33.5z"], "triangle-exclamation": [512, 512, "M256 0c14.7 0 28.2 8.1 35.2 21l216 400c6.7 12.4 6.4 27.4-.8 39.5S486.1 480 472 480L40 480c-14.1 0-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9 20.5-21 35.2-21zm0 352a32 32 0 1 0 0 64 32 32 0 1 0 0-64zm0-192c-18.2 0-32.7 15.5-31.4 33.7l7.4 104c.9 12.5 11.4 22.3 23.9 22.3 12.6 0 23-9.7 23.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z"]};
+  const ico=(n,sz)=>{const d=ICONS[n];return `<svg viewBox="0 0 ${d[0]} ${d[1]}" width="${sz||16}" height="${sz||16}" fill="currentColor" aria-hidden="true" style="flex:none"><path d="${d[2]}"/></svg>`};
+    function boxBlurGray(src, w, h, r) {
+      const tmp = new Float32Array(w * h);
+      const out = new Float32Array(w * h);
+      const n = 2 * r + 1;
+      for (let y = 0; y < h; y++) {
+        const row = y * w;
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += src[row + Math.min(w - 1, Math.max(0, k))];
+        for (let x = 0; x < w; x++) {
+          tmp[row + x] = sum / n;
+          sum += src[row + Math.min(w - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+        }
+      }
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += tmp[Math.min(h - 1, Math.max(0, k)) * w + x];
+        for (let y = 0; y < h; y++) {
+          out[y * w + x] = sum / n;
+          sum += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+        }
+      }
+      return out;
+    }
+
+    function otsuThreshold(gray) {
+      const hist = new Array(256).fill(0);
+      for (let i = 0; i < gray.length; i++) hist[Math.max(0, Math.min(255, gray[i] | 0))]++;
+      const total = gray.length;
+      let sumAll = 0;
+      for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+      let sumB = 0, wB = 0, best = 0, thr = 128;
+      for (let t = 0; t < 256; t++) {
+        wB += hist[t];
+        if (wB === 0) continue;
+        const wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB, mF = (sumAll - sumB) / wF;
+        const between = wB * wF * (mB - mF) * (mB - mF);
+        if (between > best) { best = between; thr = t; }
+      }
+      return thr;
+    }
+
+    function findMaskComponents(mask, w, h, minArea) {
+      const visited = new Uint8Array(w * h);
+      const stack = new Int32Array(w * h);
+      const comps = [];
+      for (let s = 0; s < w * h; s++) {
+        if (!mask[s] || visited[s]) continue;
+        let sp = 0;
+        stack[sp++] = s;
+        visited[s] = 1;
+        let area = 0;
+        let minSum = Infinity, maxSum = -Infinity, minDiff = Infinity, maxDiff = -Infinity;
+        let tl = null, br = null, tr = null, bl = null;
+        while (sp > 0) {
+          const p = stack[--sp];
+          const x = p % w, y = (p / w) | 0;
+          area++;
+          const sum = x + y, diff = x - y;
+          if (sum < minSum) { minSum = sum; tl = { x, y }; }
+          if (sum > maxSum) { maxSum = sum; br = { x: x + 1, y: y + 1 }; }
+          if (diff > maxDiff) { maxDiff = diff; tr = { x: x + 1, y }; }
+          if (diff < minDiff) { minDiff = diff; bl = { x, y: y + 1 }; }
+          if (x > 0 && mask[p - 1] && !visited[p - 1]) { visited[p - 1] = 1; stack[sp++] = p - 1; }
+          if (x < w - 1 && mask[p + 1] && !visited[p + 1]) { visited[p + 1] = 1; stack[sp++] = p + 1; }
+          if (y > 0 && mask[p - w] && !visited[p - w]) { visited[p - w] = 1; stack[sp++] = p - w; }
+          if (y < h - 1 && mask[p + w] && !visited[p + w]) { visited[p + w] = 1; stack[sp++] = p + w; }
+        }
+        if (area >= minArea) comps.push({ area, quad: [tl, tr, br, bl] });
+      }
+      return comps;
+    }
+
+    function polyArea(q) {
+      let a = 0;
+      for (let i = 0; i < 4; i++) {
+        const p = q[i], n = q[(i + 1) % 4];
+        a += p.x * n.y - n.x * p.y;
+      }
+      return Math.abs(a) / 2;
+    }
+
+    function isConvexQuad(q) {
+      let sign = 0;
+      for (let i = 0; i < 4; i++) {
+        const a = q[i], b = q[(i + 1) % 4], c = q[(i + 2) % 4];
+        const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        if (Math.abs(cross) < 1e-6) return false;
+        const s = cross > 0 ? 1 : -1;
+        if (sign === 0) sign = s; else if (s !== sign) return false;
+      }
+      return true;
+    }
+
+    // rgba: Uint8ClampedArray of a small (<= ~500px) image. Returns { pts:[TL,TR,BR,BL], score } or null
+    function detectDocQuadFromRGBA(rgba, w, h) {
+      let gray = new Float32Array(w * h);
+      for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+        gray[i] = 0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2];
+      }
+      // Heavy blur removes printed text so the whole sheet becomes one solid region
+      gray = boxBlurGray(gray, w, h, 3);
+      gray = boxBlurGray(gray, w, h, 3);
+      const thr = otsuThreshold(gray);
+      const minArea = w * h * 0.10;
+
+      let best = null;
+      for (const bright of [true, false]) {
+        const mask = new Uint8Array(w * h);
+        for (let i = 0; i < mask.length; i++) mask[i] = (bright ? gray[i] > thr : gray[i] <= thr) ? 1 : 0;
+        const comps = findMaskComponents(mask, w, h, minArea);
+        for (const c of comps) {
+          const qa = polyArea(c.quad);
+          if (qa < 1 || !isConvexQuad(c.quad)) continue;
+          const fill = c.area / qa;           // 1.0 = region is a perfect quadrilateral
+          const areaFrac = qa / (w * h);
+          if (fill < 0.72 || fill > 1.15 || areaFrac < 0.12 || areaFrac > 0.97) continue;
+          const score = Math.min(fill, 1) * 0.65 + Math.min(areaFrac, 1) * 0.35 + (bright ? 0.03 : 0);
+          if (!best || score > best.score) best = { pts: c.quad, score };
+        }
+      }
+      return best;
+    }
+
+    function solveLinear(A, b) {
+      const n = b.length;
+      for (let i = 0; i < n; i++) {
+        let max = i;
+        for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[max][i])) max = r;
+        [A[i], A[max]] = [A[max], A[i]];
+        [b[i], b[max]] = [b[max], b[i]];
+        for (let r = i + 1; r < n; r++) {
+          const f = A[r][i] / A[i][i];
+          for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+          b[r] -= f * b[i];
+        }
+      }
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        let s = b[i];
+        for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c];
+        x[i] = s / A[i][i];
+      }
+      return x;
+    }
+
+    // Maps destination (u,v) -> source (x,y)
+    function solveHomography(dst, src) {
+      const A = [], b = [];
+      for (let i = 0; i < 4; i++) {
+        const u = dst[i].x, v = dst[i].y, x = src[i].x, y = src[i].y;
+        A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]); b.push(x);
+        A.push([0, 0, 0, u, v, 1, -u * y, -v * y]); b.push(y);
+      }
+      return solveLinear(A, b);
+    }
+
+    function quadOutputSize(q, maxOut) {
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      let W = Math.max(dist(q[0], q[1]), dist(q[3], q[2]));
+      let H = Math.max(dist(q[0], q[3]), dist(q[1], q[2]));
+      const s = Math.min(1, maxOut / Math.max(W, H, 1));
+      return { W: Math.max(2, Math.round(W * s)), H: Math.max(2, Math.round(H * s)) };
+    }
+
+    function warpPerspectiveRGBA(srcData, sw, sh, q, W, H) {
+      const dstPts = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+      const m = solveHomography(dstPts, q);
+      const out = new Uint8ClampedArray(W * H * 4);
+      for (let v = 0; v < H; v++) {
+        for (let u = 0; u < W; u++) {
+          const uu = u + 0.5, vv = v + 0.5;
+          const den = m[6] * uu + m[7] * vv + 1;
+          let x = (m[0] * uu + m[1] * vv + m[2]) / den - 0.5;
+          let y = (m[3] * uu + m[4] * vv + m[5]) / den - 0.5;
+          x = x < 0 ? 0 : x > sw - 1 ? sw - 1 : x;
+          y = y < 0 ? 0 : y > sh - 1 ? sh - 1 : y;
+          const x0 = x | 0, y0 = y | 0;
+          const x1 = x0 + 1 < sw ? x0 + 1 : x0, y1 = y0 + 1 < sh ? y0 + 1 : y0;
+          const fx = x - x0, fy = y - y0;
+          const i00 = (y0 * sw + x0) * 4, i10 = (y0 * sw + x1) * 4;
+          const i01 = (y1 * sw + x0) * 4, i11 = (y1 * sw + x1) * 4;
+          const o = (v * W + u) * 4;
+          for (let c = 0; c < 3; c++) {
+            const top = srcData[i00 + c] * (1 - fx) + srcData[i10 + c] * fx;
+            const bot = srcData[i01 + c] * (1 - fx) + srcData[i11 + c] * fx;
+            out[o + c] = top * (1 - fy) + bot * fy;
+          }
+          out[o + 3] = 255;
+        }
+      }
+      return out;
+    }
+
+
+  function detectCorners(srcCanvas){
+    const sc=Math.min(1,480/Math.max(srcCanvas.width,srcCanvas.height));
+    const w=Math.max(16,Math.round(srcCanvas.width*sc)),h=Math.max(16,Math.round(srcCanvas.height*sc));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(srcCanvas,0,0,w,h);
+    const res=detectDocQuadFromRGBA(x.getImageData(0,0,w,h).data,w,h);
+    if(!res)return null;
+    const kx=srcCanvas.width/w,ky=srcCanvas.height/h;
+    return res.pts.map(p=>({x:Math.min(srcCanvas.width,Math.max(0,p.x*kx)),y:Math.min(srcCanvas.height,Math.max(0,p.y*ky))}));
+  }
+
+  const el=(tag,css,html)=>{const e=document.createElement(tag);if(css)e.style.cssText=css;if(html!==undefined)e.innerHTML=html;return e};
+  const BTN='font:inherit;font-weight:600;font-size:14px;line-height:1.2;padding:9px 14px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;';
+  const KIND={
+    soft:BTN+'background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0',
+    gray:BTN+'background:#f1f5f9;color:#334155;border:1px solid #f1f5f9',
+    line:BTN+'background:#fff;color:#475569;border:1px solid #cbd5e1',
+    main:BTN+'background:#059669;color:#fff;border:1px solid #059669;font-weight:700;padding:10px 18px;box-shadow:0 4px 10px rgba(5,150,105,.35)'
+  };
+  const OK_CSS='font-size:13px;font-weight:600;border-radius:10px;padding:8px 12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;display:flex;gap:8px;align-items:flex-start';
+  const WARN_CSS='font-size:13px;font-weight:600;border-radius:10px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;display:flex;gap:8px;align-items:flex-start';
+
+  function run(file,standardFn){
+    return new Promise(async(resolve,reject)=>{
+      let bmp;try{bmp=await createImageBitmap(file)}catch(e){return reject(e)}
+      const k0=Math.min(1,3000/Math.max(bmp.width,bmp.height));
+      let src=document.createElement('canvas');src.width=Math.max(1,Math.round(bmp.width*k0));src.height=Math.max(1,Math.round(bmp.height*k0));
+      src.getContext('2d').drawImage(bmp,0,0,src.width,src.height);try{bmp.close()}catch(e){}
+
+      let pts=[],scale=1,drag=-1;
+
+      const ov=el('div','position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(10px + env(safe-area-inset-bottom,0px))');
+      const card=el('div','background:#fff;color:#0f172a;border-radius:16px;box-shadow:0 25px 50px rgba(0,0,0,.5);border:1px solid #e2e8f0;width:100%;max-width:880px;height:100%;max-height:920px;display:flex;flex-direction:column;overflow:hidden');
+      const head=el('div','background:#0f172a;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex:none');
+      head.appendChild(el('div','display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px','<span style="color:#34d399;display:flex">'+ico('vector-square',20)+'</span><span>Auto Crop &amp; Straighten</span>'));
+      const bX=el('button','background:rgba(255,255,255,.12);color:#cbd5e1;border:0;border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0',ico('xmark',18));bX.type='button';
+      head.appendChild(bX);
+      const wrapSt=el('div','padding:12px 16px 0;flex:none');
+      const status=el('div',OK_CSS,'Detecting document...');wrapSt.appendChild(status);
+      const stage=el('div','flex:1;min-height:0;background:#e2e8f0;margin:12px;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden');
+      const cv=el('canvas','touch-action:none;cursor:crosshair;display:block');stage.appendChild(cv);
+      const foot=el('div','padding:2px 16px 16px;border-top:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;flex:none');
+      const left=el('div','display:flex;flex-wrap:wrap;gap:8px;padding-top:12px'),right=el('div','display:flex;gap:8px;padding-top:12px');
+      const mk=(parent,kind,html)=>{const b=el('button',KIND[kind],html);b.type='button';parent.appendChild(b);return b};
+      const bAuto=mk(left,'soft',ico('wand-magic-sparkles')+'<span>Auto-detect</span>');
+      const bFull=mk(left,'gray',ico('expand')+'<span>Full image</span>');
+      const bRL=mk(left,'gray',ico('rotate-left'));
+      const bRR=mk(left,'gray',ico('rotate-right'));
+      const bStd=mk(left,'line','<span>Standard crop</span>');
+      const bNo=mk(right,'line','<span>Cancel</span>');
+      const bOk=mk(right,'main',ico('check')+'<span>Crop &amp; Straighten</span>');
+      foot.append(left,right);
+      card.append(head,wrapSt,stage,foot);ov.appendChild(card);document.body.appendChild(ov);
+
+      const fullQuad=m=>{const W=src.width,H=src.height;return[{x:W*m,y:H*m},{x:W*(1-m),y:H*m},{x:W*(1-m),y:H*(1-m)},{x:W*m,y:H*(1-m)}]};
+      function layout(){
+        const aw=Math.max(120,stage.clientWidth-16),ah=Math.max(120,stage.clientHeight-16);
+        scale=Math.min(aw/src.width,ah/src.height);
+        cv.width=Math.max(1,Math.round(src.width*scale));cv.height=Math.max(1,Math.round(src.height*scale));
+        cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';draw();
+      }
+      function draw(){
+        const c=cv.getContext('2d'),s=scale;
+        c.clearRect(0,0,cv.width,cv.height);c.drawImage(src,0,0,cv.width,cv.height);
+        c.save();c.beginPath();c.rect(0,0,cv.width,cv.height);c.moveTo(pts[0].x*s,pts[0].y*s);
+        for(let i=1;i<4;i++)c.lineTo(pts[i].x*s,pts[i].y*s);
+        c.closePath();c.fillStyle='rgba(15,23,42,.5)';c.fill('evenodd');c.restore();
+        c.beginPath();c.moveTo(pts[0].x*s,pts[0].y*s);for(let i=1;i<4;i++)c.lineTo(pts[i].x*s,pts[i].y*s);
+        c.closePath();c.lineWidth=3;c.strokeStyle='#10b981';c.stroke();
+        pts.forEach((p,i)=>{c.beginPath();c.arc(p.x*s,p.y*s,i===drag?14:12,0,Math.PI*2);c.fillStyle='rgba(255,255,255,.85)';c.fill();c.lineWidth=3;c.strokeStyle='#059669';c.stroke()});
+        if(drag>=0){
+          const p=pts[drag],R=58,zoom=2.6,lx=(p.x*s<cv.width/2)?cv.width-R-10:R+10,ly=R+10,reg=(2*R)/(s*zoom);
+          c.save();c.beginPath();c.arc(lx,ly,R,0,Math.PI*2);c.clip();c.fillStyle='#fff';c.fillRect(lx-R,ly-R,2*R,2*R);
+          c.drawImage(src,p.x-reg/2,p.y-reg/2,reg,reg,lx-R,ly-R,2*R,2*R);c.restore();
+          c.beginPath();c.arc(lx,ly,R,0,Math.PI*2);c.lineWidth=3;c.strokeStyle='#10b981';c.stroke();
+          c.beginPath();c.moveTo(lx-12,ly);c.lineTo(lx+12,ly);c.moveTo(lx,ly-12);c.lineTo(lx,ly+12);c.lineWidth=1.5;c.strokeStyle='#ef4444';c.stroke();
+        }
+      }
+      function autoDetect(){
+        const f=detectCorners(src);
+        if(f){pts=f;status.style.cssText=OK_CSS;status.innerHTML=ico('circle-check',16)+'<span>Document detected \u2014 check the 4 corners, drag any to fine-tune.</span>'}
+        else{pts=fullQuad(.03);status.style.cssText=WARN_CSS;status.innerHTML=ico('triangle-exclamation',16)+'<span>Could not detect edges automatically \u2014 drag the 4 corners onto the document corners.</span>'}
+        layout();
+      }
+      function rotate(deg){
+        const o=src,c=document.createElement('canvas');c.width=o.height;c.height=o.width;
+        const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(deg*Math.PI/180);x.drawImage(o,-o.width/2,-o.height/2);
+        src=c;autoDetect();
+      }
+      const ptr=e=>{const b=cv.getBoundingClientRect();return{x:(e.clientX-b.left)*(cv.width/b.width),y:(e.clientY-b.top)*(cv.height/b.height)}};
+      cv.onpointerdown=e=>{
+        const p=ptr(e);let best=-1,bd=40;
+        pts.forEach((q,i)=>{const d=Math.hypot(q.x*scale-p.x,q.y*scale-p.y);if(d<bd){bd=d;best=i}});
+        if(best>=0){drag=best;cv.setPointerCapture(e.pointerId);e.preventDefault();draw()}
+      };
+      cv.onpointermove=e=>{
+        if(drag<0)return;const p=ptr(e);
+        pts[drag]={x:Math.min(src.width,Math.max(0,p.x/scale)),y:Math.min(src.height,Math.max(0,p.y/scale))};draw();
+      };
+      cv.onpointerup=cv.onpointercancel=()=>{if(drag>=0){drag=-1;draw()}};
+      const onResize=()=>layout();
+      window.addEventListener('resize',onResize);
+      const close=()=>{window.removeEventListener('resize',onResize);ov.remove()};
+
+      bAuto.onclick=autoDetect;
+      bFull.onclick=()=>{pts=[{x:0,y:0},{x:src.width,y:0},{x:src.width,y:src.height},{x:0,y:src.height}];draw()};
+      bRL.onclick=()=>rotate(-90);bRR.onclick=()=>rotate(90);
+      bNo.onclick=bX.onclick=()=>{close();resolve(null)};
+      bStd.onclick=async()=>{
+        const bl=await new Promise(r=>src.toBlob(r,'image/jpeg',0.95));
+        close();
+        try{resolve(await standardFn(bl||file))}catch(e){reject(e)}
+      };
+      bOk.onclick=()=>{
+        if(!isConvexQuad(pts)){status.style.cssText=WARN_CSS;status.innerHTML=ico('triangle-exclamation',16)+'<span>Corners are crossed \u2014 drag them so they form a four-sided shape.</span>';return}
+        bOk.disabled=true;bOk.style.opacity='.6';
+        setTimeout(()=>{
+          try{
+            const sz=quadOutputSize(pts,2400),W=sz.W,H=sz.H;
+            const sd=src.getContext('2d',{willReadFrequently:true}).getImageData(0,0,src.width,src.height).data;
+            const out=warpPerspectiveRGBA(sd,src.width,src.height,pts,W,H);
+            const oc=document.createElement('canvas');oc.width=W;oc.height=H;
+            oc.getContext('2d').putImageData(new ImageData(out,W,H),0,0);
+            oc.toBlob(bl=>{close();resolve(bl)},'image/jpeg',0.95);
+          }catch(e){close();reject(e)}
+        },30);
+      };
+      autoDetect();
+    });
+  }
+  return run;
+})();
+
+/* ---- crop step: auto corner detection + straighten first; returns cropped Blob or null (cancel) ---- */
+function cropImage(file){return autoCropImage(file,cropImageStandard)}
+/* ---- standard rectangle crop screen (kept as the "Standard crop" option) ---- */
+function cropImageStandard(file){
+  return new Promise(async(resolve,reject)=>{
+    let bmp;try{bmp=await createImageBitmap(file)}catch(e){return reject(e)}
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))';
+    const tip=document.createElement('div');tip.style.cssText='color:#fff;font-size:14px;text-align:center';tip.textContent='Box ko kheench kar hilayein, kone pakad kar chhota/bada karein';
+    const cv=document.createElement('canvas');cv.style.cssText='touch-action:none;max-width:100%;border-radius:6px;background:#000';
+    const bar=document.createElement('div');bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center';
+    const mk=(t,c)=>{const x=document.createElement('button');x.type='button';x.textContent=t;if(c)x.className=c;bar.appendChild(x);return x};
+    const bOk=mk('\u2702 Crop karke use karein','p'),bFull=mk('Poori photo use karein'),bNo=mk('Cancel');
+    ov.append(tip,cv,bar);document.body.appendChild(ov);
+    const sc=Math.min((innerWidth-24)/bmp.width,(innerHeight-170)/bmp.height);
+    const W=Math.max(50,Math.round(bmp.width*sc)),H=Math.max(50,Math.round(bmp.height*sc));
+    cv.width=W;cv.height=H;cv.style.width=W+'px';cv.style.height=H+'px';
+    const ctx=cv.getContext('2d'),MIN=40;
+    let r={x:W*.05,y:H*.05,w:W*.9,h:H*.9},mode=null,anchor=null,off=null;
+    const draw=()=>{
+      ctx.drawImage(bmp,0,0,W,H);
+      ctx.fillStyle='rgba(0,0,0,.55)';
+      ctx.fillRect(0,0,W,r.y);ctx.fillRect(0,r.y+r.h,W,H-r.y-r.h);ctx.fillRect(0,r.y,r.x,r.h);ctx.fillRect(r.x+r.w,r.y,W-r.x-r.w,r.h);
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);
+      ctx.fillStyle='#fff';
+      [[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].forEach(([x,y])=>ctx.fillRect(x-7,y-7,14,14));
+    };
+    const pos=e=>{const b=cv.getBoundingClientRect();return{x:Math.min(W,Math.max(0,(e.clientX-b.left)*W/b.width)),y:Math.min(H,Math.max(0,(e.clientY-b.top)*H/b.height))}};
+    const corners=()=>[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]];
+    cv.onpointerdown=e=>{
+      const p=pos(e);cv.setPointerCapture(e.pointerId);
+      const c=corners(),i=c.findIndex(q=>Math.hypot(q[0]-p.x,q[1]-p.y)<28);
+      if(i>=0){mode='size';anchor={x:c[3-i][0],y:c[3-i][1]}}
+      else if(p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h){mode='move';off={x:p.x-r.x,y:p.y-r.y}}
+      else{mode='size';anchor={x:p.x,y:p.y}}
+    };
+    cv.onpointermove=e=>{
+      if(!mode)return;const p=pos(e);
+      if(mode==='move'){r.x=Math.min(W-r.w,Math.max(0,p.x-off.x));r.y=Math.min(H-r.h,Math.max(0,p.y-off.y))}
+      else{
+        let x=Math.min(anchor.x,p.x),y=Math.min(anchor.y,p.y),w=Math.abs(p.x-anchor.x),h=Math.abs(p.y-anchor.y);
+        if(w<MIN){w=MIN;x=p.x<anchor.x?anchor.x-MIN:anchor.x;if(x+w>W)x=W-w}
+        if(h<MIN){h=MIN;y=p.y<anchor.y?anchor.y-MIN:anchor.y;if(y+h>H)y=H-h}
+        r={x,y,w,h};
+      }
+      draw();
+    };
+    cv.onpointerup=cv.onpointercancel=()=>{mode=null};
+    const done=v=>{ov.remove();try{bmp.close()}catch(e){}resolve(v)};
+    bOk.onclick=()=>{
+      const sw=Math.round(r.w/sc),sh=Math.round(r.h/sc),c=document.createElement('canvas');c.width=sw;c.height=sh;
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,sw,sh);x.drawImage(bmp,r.x/sc,r.y/sc,sw,sh,0,0,sw,sh);
+      c.toBlob(bl=>done(bl),'image/jpeg',0.95);
+    };
+    bFull.onclick=()=>done(file);
+    bNo.onclick=()=>done(null);
+    draw();
+  });
+}
+document.querySelectorAll('input[type=file][data-k]').forEach(inp=>inp.addEventListener('change',async()=>{
+  const k=inp.dataset.k,f=inp.files[0],box=inp.parentNode,im=box.querySelector('img'),sm=box.querySelector('small');
+  if(!f)return;
+  try{
+    const src=await cropImage(f);
+    if(!src){inp.value='';return}
+    sm.className='';sm.textContent='Compress ho rahi hai\u2026';
+    const b=await compress(src,IM.find(i=>i[0]===k)[2]);
+    if(b.size>LIMIT)throw new Error('size limit');
+    imgs[k]=b;im.src=URL.createObjectURL(b);im.hidden=false;
+    sm.className='ok';sm.textContent=`\u2713 ${(b.size/1000).toFixed(0)} KB (pehle ${(f.size/1000).toFixed(0)} KB)`;
+  }catch(e){delete imgs[k];im.hidden=true;sm.className='er';sm.textContent='Sirf image (JPG/PNG) chunein';}
+  inp.value='';
+}));
+
+/* ---- form ---- */
+const norm=s=>s.trim().replace(/\s+/g,' ').toLowerCase();
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'student';
+function collect(){
+  const d={};
+  [...F1,...F2].forEach(([k])=>{if(k==='gender'){const r=document.querySelector('input[name=gender]:checked');d.gender=r?r.value:''}else if(k==='dob'){const v=$('#dob').value;d.dob=v?v.split('-').reverse().join('/'):''}else d[k]=$('#'+k).value.trim().replace(/\s+/g,' ')});
+  d.ifsc=d.ifsc.toUpperCase();d.category=catOf(ageOn($('#dob').value));return d;
+}
+function validate(d){
+  const e=[];
+  if(!d.student_name)e.push("Student's name likhein");
+  if(!d.class)e.push('Class chunein');
+  if(!d.gender)e.push('Gender chunein');
+  if(!/^\d{12}$/.test(d.aadhaar))e.push('Aadhaar 12 digit ka hona chahiye');
+  if(!d.dob)e.push('Date of birth chunein');
+  if(!d.mother_name)e.push("Mother's name likhein");
+  if(!d.father_name)e.push("Father's name likhein");
+  if(!/^\d{10}$/.test(d.mobile))e.push('Mobile number 10 digit ka hona chahiye');
+  if(d.email&&!/^\S+@\S+\.\S+$/.test(d.email))e.push('Email sahi nahi hai');
+  if(d.dob&&!d.category)e.push(`Is DOB par 1 March 2027 ko umar ${ageOn($('#dob').value)} saal hai: U-14/U-16 category mein nahi aata`);
+  if(!d.game)e.push('Apna game chunein');
+  else{const x=GAMES.find(y=>y[0]===d.game);if(!x||!x[1].includes(d.category)||!x[2].includes(d.gender))e.push('Chuna hua game is gender aur age category ke liye eligible nahi hai')}
+  if(!d.beneficiary_name)e.push('Beneficiary name likhein');
+  else if(![d.student_name,d.mother_name,d.father_name].map(norm).includes(norm(d.beneficiary_name)))e.push('Beneficiary name student/mother/father ke naam se match karna chahiye');
+  if(!/^\d{9,18}$/.test(d.account_number))e.push('Account number sahi nahi hai (sirf digits)');
+  if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(d.ifsc))e.push('IFSC code sahi nahi hai (jaise SBIN0001234)');
+  IM.forEach(([k,l])=>{if(!imgs[k])e.push(l+' upload karein')});
+  return e;
+}
+async function save(filename,data){
+  const dl=(typeof claude!=='undefined')?await claude.use('downloads'):null;
+  if(dl)return dl.save({filename,data});
+  const a=document.createElement('a');a.href=URL.createObjectURL(data);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+}
+async function upload(d){
+  const btn=$('#sub'),dn=$('#done'),msg=(c,t)=>{const m=document.createElement('p');m.className=c;m.textContent=t;dn.replaceChildren(m)};
+  btn.disabled=true;msg('','Bhej rahe hain… thoda time lag sakta hai, page band na karein.');
+  let j;
+  try{
+    const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(b)});
+    const images={};for(const [k] of IM)images[k]=await b64(imgs[k]);
+    const res=await fetch(ENDPOINT,{method:'POST',body:JSON.stringify({...d,code:CODE,images})});
+    j=await res.json();
+  }catch(x){btn.disabled=false;msg('er','Server tak nahi pahunch paya. Backup file download ho rahi hai, use teacher ko bhejein.');return false}
+  btn.disabled=false;
+  if(!j.ok){msg('er','Nahi bheja ja saka: '+j.error);return true}
+  msg('ok',`✓ ${d.student_name} ka registration teacher tak pahunch gaya. Dobara bhejne ki zaroorat nahi.`);return true;
+}
+$('#sub').onclick=async()=>{
+  const d=collect(),e=validate(d),box=$('#err');
+  if(e.length){box.style.display='block';box.innerHTML='<b>Pehle yeh theek karein:</b><ul>'+e.map(x=>`<li>${x}</li>`).join('')+'</ul>';box.scrollIntoView({block:'center'});return}
+  box.style.display='none';
+  if(ENDPOINT&&await upload(d))return;
+  try{
+    if(typeof JSZip==='undefined')throw new Error('JSZip load nahi hua');
+    const z=new JSZip();z.file('data.json',JSON.stringify(d,null,1));
+    IM.forEach(([k])=>z.file(k+'.jpg',imgs[k]));
+    const blob=await z.generateAsync({type:'blob'});
+    const fn=`${slug(d.student_name)}_class${d.class}_${d.aadhaar.slice(-4)}.zip`;await save(fn,blob);
+    const m=document.createElement('p');m.className='ok';m.textContent=`✓ File save ho gayi: ${fn}. Ise teacher ko bhejein aur message mein apna naam (${d.student_name}), class (${d.class}) aur game (${d.game}) likhein.`;$('#done').replaceChildren(m);
+    const zf=new File([blob],fn,{type:'application/zip'});
+    const wt=`Namaste, registration file bhej raha/rahi hoon: ${fn}\nNaam: ${d.student_name}, Class: ${d.class}, Game: ${d.game}`;
+    const bx=document.createElement('p'),nt=document.createElement('p');nt.className='er';
+    if(navigator.canShare&&navigator.canShare({files:[zf]})){const sb=document.createElement('button');sb.className='p';sb.textContent='Share karein (file ke saath)';
+      sb.onclick=async()=>{try{await navigator.share({files:[zf],title:fn,text:wt})}catch(e){if(e.name!=='AbortError')nt.textContent='Share nahi ho paya. Neeche WhatsApp wala button use karein.'}};bx.appendChild(sb);bx.append(' ')}
+    const wa=document.createElement('a');wa.className='btn';wa.target='_blank';wa.rel='noopener';wa.href='https://wa.me/'+WA+'?text='+encodeURIComponent(wt);wa.textContent=WA?'WhatsApp par teacher ki chat kholein':'WhatsApp kholein';bx.appendChild(wa);
+    const ins=document.createElement('p');ins.className='s';ins.textContent=`WhatsApp khulne par \uD83D\uDCCE (attach) > Document dabayein aur Downloads folder se "${fn}" chunkar bhej dein.`;
+    $('#done').append(bx,ins,nt);
+  }catch(x){if(x&&x.code==='declined')return;$('#done').innerHTML='<p class="er">File save nahi ho payi. Dobara try karein ya Chrome mein kholein.</p>'}
+};
+
+</script>
+</body>
+</html>
