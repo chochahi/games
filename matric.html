@@ -1,0 +1,2369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>51860 - UHS Chochahi Chhapra | Declaration Scanner & PDF Compressor (~250 KB)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jsPDF for client-side PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- JSZip for batch downloading -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Cropper.js for image cropping -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <!-- Google Font Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-gradient-to-r from-indigo-900 via-blue-800 to-indigo-900 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center text-xl font-extrabold border border-white/25 shadow-inner">
+          <i class="fa-solid fa-file-shield text-amber-300"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-bold uppercase tracking-wider bg-amber-400 text-slate-900 rounded-md">Code: 51860</span>
+            <h1 class="text-base sm:text-lg font-bold tracking-tight">UHS Chochahi Chhapra — Declaration Portal</h1>
+          </div>
+          <p class="text-xs text-blue-200 mt-0.5">
+            Student CSV Manager &bull; Smart Document Scanner &bull; Crisp PDF Compressor (<span class="text-emerald-300 font-semibold">Around 250 KB</span>)
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action Bar -->
+      <div class="flex items-center flex-wrap gap-2">
+        <button onclick="openStandaloneScanner()" class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs sm:text-sm shadow flex items-center gap-2 transition">
+          <i class="fa-solid fa-camera"></i>
+          <span>Quick Scan to PDF (~250KB)</span>
+        </button>
+
+        <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-medium text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition">
+          <i class="fa-solid fa-file-csv text-amber-300"></i>
+          <span>Load .CSV</span>
+          <input type="file" id="csvFileInput" accept=".csv,text/csv" class="hidden" onchange="handleCSVUpload(event)" />
+        </label>
+
+        <button onclick="exportToZip()" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold text-xs sm:text-sm shadow flex items-center gap-2 transition" title="Downloads one ZIP: student CSV with status + all scanned PDFs">
+          <i class="fa-solid fa-file-zipper"></i>
+          <span>Export (CSV + PDFs ZIP)</span>
+        </button>
+
+        <button id="syncOpenBtn" onclick="openSyncModal()" class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm border border-white/20 shadow flex items-center gap-2 transition">
+          <i class="fa-solid fa-lock text-amber-300"></i>
+          <span id="syncOpenBtnLabel">Set Sync Password</span>
+        </button>
+
+        <button onclick="openResetConfirmModal()" class="px-3.5 py-2 rounded-xl bg-rose-500/90 hover:bg-rose-600 text-white font-semibold text-xs sm:text-sm shadow flex items-center gap-2 transition">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Reset Data</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification Banner -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-[80] hidden max-w-sm bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all">
+    <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+    <div class="text-xs sm:text-sm font-medium" id="toastText">Action completed!</div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
+
+    <!-- Stats & Progress Row -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase">Total Students</p>
+          <p id="statTotal" class="text-2xl font-extrabold text-slate-800 mt-0.5">0</p>
+          <p class="text-[11px] text-slate-400">Loaded from CSV</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase">PDF Generated</p>
+          <p id="statCompleted" class="text-2xl font-extrabold text-emerald-600 mt-0.5">0</p>
+          <p class="text-[11px] text-emerald-600 font-medium">Verified &le; 250 KB</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-file-circle-check"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase">Pending Upload</p>
+          <p id="statPending" class="text-2xl font-extrabold text-amber-600 mt-0.5">0</p>
+          <p class="text-[11px] text-slate-400">Awaiting Declaration</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+      </div>
+
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase">Gender Split</p>
+          <p id="statGender" class="text-lg font-extrabold text-slate-800 mt-1">0 M / 0 F</p>
+          <p class="text-[11px] text-slate-400">Current Records</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-venus-mars"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- Info & Row Action Banner -->
+    <div class="bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 sm:px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900">
+      <div class="flex items-start gap-3">
+        <i class="fa-solid fa-circle-info text-amber-600 text-base mt-0.5"></i>
+        <div>
+          <span class="font-bold">CSV Data &amp; Inline Editing:</span> Load your student list using the <strong>Load .CSV</strong> button (supports <code>51860_Pending_Declaration_Students.csv</code> or any standard CSV). Click any cell in the table to edit Student, Father, or Mother names inline.
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="addNewStudentModal()" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-plus"></i> Add Row
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter & Search Controls -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+        <!-- Search Box -->
+        <div class="lg:col-span-5 relative">
+          <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-sm"></i>
+          <input
+            type="text"
+            id="searchInput"
+            oninput="renderTable()"
+            placeholder="Search by Father Name, Mother Name, Student, or App. No..."
+            class="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none"
+          />
+        </div>
+
+        <!-- Gender Filter -->
+        <div class="lg:col-span-2">
+          <select id="genderFilter" onchange="renderTable()" class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:border-indigo-600 outline-none">
+            <option value="ALL">All Genders</option>
+            <option value="MALE">Male Only</option>
+            <option value="FEMALE">Female Only</option>
+          </select>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="lg:col-span-2">
+          <select id="categoryFilter" onchange="renderTable()" class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:border-indigo-600 outline-none">
+            <option value="ALL">All Categories</option>
+            <option value="REGULAR">Regular</option>
+            <option value="PRIVATE">Private</option>
+            <option value="EX-REGULAR">Ex-Regular</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="lg:col-span-3">
+          <select id="statusFilter" onchange="renderTable()" class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:border-indigo-600 outline-none">
+            <option value="ALL">Status: All Students</option>
+            <option value="Pending">Pending Declaration</option>
+            <option value="PDF Ready">PDF Ready (&le;250 KB)</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Student Table -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <div class="overflow-x-auto custom-scrollbar">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-800 text-slate-100 text-xs uppercase tracking-wider">
+              <th class="py-3.5 px-3 font-semibold text-center w-auto">APP. NO</th>
+              <th class="py-3.5 px-3 font-semibold text-center min-w-[115px]">Category</th>
+              <th class="py-3.5 px-3 font-semibold min-w-[160px]">Student Name <span class="text-[10px] text-amber-300 font-normal">(Editable)</span></th>
+              <th class="py-3.5 px-3 font-semibold min-w-[180px]">Father Name</th>
+              <th class="py-3.5 px-3 font-semibold min-w-[160px]">Mother Name</th>
+              <th class="py-3.5 px-2 font-semibold text-center">Gender</th>
+              <th class="py-3.5 px-3 font-semibold text-center min-w-[110px]" title="Date of Birth (DOB)">DOB</th>
+              <th class="py-3.5 px-3 font-semibold text-center">Status</th>
+              <th class="py-3.5 px-4 font-semibold text-right min-w-[180px]">Scan &amp; PDF Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody" class="divide-y divide-slate-200 text-sm">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden py-14 px-4 text-center">
+        <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-3xl mx-auto mb-3 shadow-inner">
+          <i class="fa-solid fa-file-csv"></i>
+        </div>
+        <p id="emptyStateTitle" class="text-slate-700 font-bold text-base">No student data loaded</p>
+        <p id="emptyStateDesc" class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+          Use <strong>Load .CSV</strong> in the top bar to populate the student list, or add a student row manually to start scanning declaration forms.
+        </p>
+        <div class="mt-5 flex items-center justify-center flex-wrap gap-3">
+          <button onclick="addNewStudentModal()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition">
+            <i class="fa-solid fa-plus text-indigo-600"></i>
+            <span>Add Row Manually</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: CONFIRM RESET DATA                                             -->
+  <!-- ===================================================================== -->
+  <div id="resetConfirmModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Reset All Webapp Data?</h3>
+          <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+            This will permanently clear all currently loaded student records, inline edits, and status progress from the table and browser storage.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+        <button onclick="closeResetConfirmModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          Cancel
+        </button>
+        <button onclick="confirmResetAllData()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Yes, Reset Data</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: DECLARATION SCANNER (was missing from the original file)       -->
+  <!-- ===================================================================== -->
+  <div id="scannerModal" class="fixed inset-0 z-50 hidden bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl overflow-hidden flex flex-col max-h-[95vh]">
+      <!-- Header -->
+      <div class="bg-slate-900 text-white px-4 sm:px-5 py-3.5 flex items-start justify-between gap-3 shrink-0">
+        <div class="min-w-0">
+          <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+            <i class="fa-solid fa-camera text-emerald-400"></i> Declaration Scanner
+          </h2>
+          <p id="scannerStudentSub" class="text-xs text-slate-300 mt-0.5 break-words"></p>
+        </div>
+        <button onclick="closeScannerModal()" class="w-8 h-8 shrink-0 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-5 gap-0">
+        <!-- Preview -->
+        <div class="lg:col-span-3 bg-slate-100 p-3 sm:p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span id="pageCountBadge" class="px-2.5 py-1 rounded-full bg-slate-800 text-white text-xs font-bold">0 Pages</span>
+              <div id="multiPageTabs" class="flex items-center gap-1"></div>
+            </div>
+            <div id="sizeStatusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-200 flex items-center gap-1.5">
+              <i class="fa-solid fa-weight-hanging"></i>
+              <span id="estSizeText">0 KB</span>
+            </div>
+          </div>
+          <div class="flex-1 flex items-center justify-center bg-slate-300/60 rounded-xl p-2 overflow-auto min-h-[260px]">
+            <canvas id="previewCanvas" width="600" height="800" class="bg-white shadow-lg rounded" style="max-height:60vh;width:auto;"></canvas>
+          </div>
+          <div id="compressionDetails" class="text-[11px] text-slate-600 text-center"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="lg:col-span-2 p-4 space-y-4 border-t lg:border-t-0 lg:border-l border-slate-200">
+          <!-- Capture / Upload -->
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">1. Capture or Upload</p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition">
+                <i class="fa-solid fa-camera"></i><span>Take Photo</span>
+                <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelect(event)" />
+              </label>
+              <label class="cursor-pointer px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition">
+                <i class="fa-solid fa-image"></i><span>Upload Image(s)</span>
+                <input type="file" accept="image/*" multiple class="hidden" onchange="handleImageSelect(event)" />
+              </label>
+            </div>
+            <button type="button" onclick="loadSampleDeclarationForm()" class="mt-2 w-full text-[11px] text-slate-500 hover:text-indigo-700 underline">Load sample form (test only)</button>
+          </div>
+
+          <!-- Filters -->
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">2. Enhance</p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" id="btnFilter_magic" onclick="setFilterMode('magic')" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-600 bg-indigo-600 text-white flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Magic</button>
+              <button type="button" id="btnFilter_bw" onclick="setFilterMode('bw')" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 flex items-center gap-2"><i class="fa-solid fa-circle-half-stroke"></i> B&amp;W</button>
+              <button type="button" id="btnFilter_gray" onclick="setFilterMode('gray')" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 flex items-center gap-2"><i class="fa-solid fa-droplet-slash"></i> Gray</button>
+              <button type="button" id="btnFilter_color" onclick="setFilterMode('color')" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 flex items-center gap-2"><i class="fa-solid fa-palette"></i> Color</button>
+            </div>
+            <p class="mt-3 text-[11px] text-slate-500"><i class="fa-solid fa-lock"></i> Brightness &amp; contrast are set automatically for each mode to keep colour tone and text true.</p>
+            <button type="button" onclick="rotateActivePage(-90)" class="mt-3 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-2"><i class="fa-solid fa-rotate-left"></i> Rotate Left</button>
+            <button type="button" onclick="rotateActivePage(90)" class="mt-3 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-2"><i class="fa-solid fa-rotate-right"></i> Rotate Right</button>
+          </div>
+
+          <!-- Size -->
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">3. Size Limit</p>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="text-xs text-slate-600">Max size
+                <select id="maxKbSelect" onchange="recalculatePreviewAndSize()" class="mt-1 w-full px-2 py-2 text-sm rounded-lg border border-slate-300 bg-white">
+                  <option value="250" selected>250 KB (crystal clear)</option>
+                  <option value="220">220 KB</option>
+                  <option value="180">180 KB</option>
+                </select>
+              </label>
+              <label class="text-xs text-slate-600">Max resolution
+                <select id="maxDimSelect" onchange="recalculatePreviewAndSize()" class="mt-1 w-full px-2 py-2 text-sm rounded-lg border border-slate-300 bg-white">
+                  <option value="2200" selected>2200 px (sharpest)</option>
+                  <option value="1800">1800 px</option>
+                  <option value="1500">1500 px</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <!-- Save -->
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">4. Save</p>
+            <input id="pdfFilenameInput" type="text" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 outline-none focus:border-indigo-600" placeholder="File name.pdf" />
+            <button type="button" onclick="generateAndDownloadPDF()" class="mt-2 w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow flex items-center justify-center gap-2 transition">
+              <i class="fa-solid fa-file-pdf"></i> Generate PDF (~250 KB)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: AUTO CORNER DETECTION + PERSPECTIVE STRAIGHTEN                 -->
+  <!-- ===================================================================== -->
+  <div id="cornerModal" class="fixed inset-0 z-[60] hidden bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden flex flex-col h-[92vh]">
+      <div class="bg-slate-900 text-white px-4 sm:px-5 py-3.5 flex items-center justify-between shrink-0">
+        <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+          <i class="fa-solid fa-vector-square text-emerald-400"></i>
+          <span>Auto Crop &amp; Straighten</span>
+        </h2>
+        <button onclick="closeCornerModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div class="px-4 pt-3 shrink-0"><div id="cornerStatus" class="text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg px-3 py-1.5">Detecting document...</div></div>
+      <div id="cornerStage" class="flex-1 bg-slate-200 m-3 rounded-xl overflow-hidden flex items-center justify-center min-h-0">
+        <canvas id="cornerCanvas" width="10" height="10" style="touch-action:none;cursor:crosshair;"></canvas>
+      </div>
+      <div class="px-4 pb-4 pt-1 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 flex-wrap pt-3">
+          <button type="button" onclick="runAutoDetect(false)" class="px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto-detect</button>
+          <button type="button" onclick="resetCornersToFull()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-expand"></i> Full image</button>
+          <button type="button" onclick="rotateCornerSource(-90)" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-rotate-left"></i></button>
+          <button type="button" onclick="rotateCornerSource(90)" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold flex items-center gap-2 transition"><i class="fa-solid fa-rotate-right"></i></button>
+          <button type="button" onclick="switchToStandardCrop()" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-600 border border-slate-300 text-xs sm:text-sm font-medium transition">Standard crop</button>
+        </div>
+        <div class="flex items-center gap-2 pt-3">
+          <button onclick="closeCornerModal()" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm font-semibold transition">Cancel</button>
+          <button onclick="applyCornerCrop()" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow flex items-center gap-2 transition"><i class="fa-solid fa-check"></i> Crop &amp; Straighten</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: IMAGE CROPPER                                                  -->
+  <!-- ===================================================================== -->
+  <div id="cropperModal" class="fixed inset-0 z-[60] hidden bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl overflow-hidden flex flex-col h-[85vh]">
+      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
+        <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+          <i class="fa-solid fa-crop-simple text-indigo-400"></i>
+          <span>Crop Document Image</span>
+        </h2>
+        <button type="button" onclick="switchToCornerMode()" class="ml-auto mr-3 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold flex items-center gap-1.5"><i class="fa-solid fa-vector-square"></i> Auto Corners</button>
+        <button onclick="closeCropperModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <div class="flex-1 bg-slate-100 relative overflow-hidden flex items-center justify-center p-4">
+        <!-- Cropper.js requires the image to be block-level inside a container -->
+        <div class="w-full h-full flex items-center justify-center">
+          <img id="cropperImage" src="" class="max-w-full max-h-full block" />
+        </div>
+      </div>
+      <div class="p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="rotateCropper(-90)" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition flex items-center gap-2">
+            <i class="fa-solid fa-rotate-left"></i> Left
+          </button>
+          <button type="button" onclick="rotateCropper(90)" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition flex items-center gap-2">
+            <i class="fa-solid fa-rotate-right"></i> Right
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="closeCropperModal()" class="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-sm font-semibold transition">
+            Cancel
+          </button>
+          <button onclick="applyCrop()" class="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow flex items-center gap-2 transition">
+            <i class="fa-solid fa-check"></i> Apply Crop &amp; Process
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-4 px-4 text-center text-xs text-slate-500">
+    51860 - UCHCH MADHYAMIK VIDYALAYA CHOCHAHI CHHAPRA &bull; Student Declaration CSV &amp; Smart PDF Compression Utility
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: PASSWORD CLOUD SYNC                                             -->
+  <!-- ===================================================================== -->
+  <div id="syncModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">Live Password Cloud Sync</h3>
+        <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&#10005;</button>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed">
+        1. Enter your secret password on your <b>PC / Main Phone</b> and click <b>"Save &amp; Push Sync"</b>.<br/>
+        2. Open your <b>Other Device</b>, enter the <b>exact same password</b>, and click <b>"Pull from Cloud"</b>.
+      </p>
+      <div>
+        <label class="text-xs font-semibold text-slate-700">Secret Sync Password</label>
+        <input id="syncPasswordInput" type="text" placeholder="e.g. UHS51860Sync" oninput="onSyncPasswordInput(this.value)"
+          class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
+      </div>
+      <p id="syncStatusMsg" class="text-xs font-semibold hidden"></p>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="syncWithPasswordCloud('pull', true)" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+          Pull from Cloud
+        </button>
+        <button onclick="syncWithPasswordCloud('push', true)" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow transition">
+          Save &amp; Push Sync
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- APPLICATION JAVASCRIPT                                                -->
+  <!-- ===================================================================== -->
+  <script>
+    // -----------------------------------------------------------------------
+    // 1. STATE INITIALIZATION (NO PRELOADED STUDENT DATA)
+    // -----------------------------------------------------------------------
+    const STORAGE_KEY = "uhs_51860_students_v2_empty";
+    let students = [];
+
+    // Scanner state
+    let activeStudentAppNo = null;
+    let scannedPages = []; // Array of { imgElement, rotation: 0 }
+    let activePageIndex = 0;
+    let currentFilterMode = "magic"; // 'magic' | 'bw' | 'gray' | 'color'
+
+    // Cropper state
+    let cropper = null;
+    let cropQueue = [];
+    let cropProcessedCount = 0;
+
+    // -----------------------------------------------------------------------
+    // 2. INITIALIZATION & LOCAL STORAGE
+    // -----------------------------------------------------------------------
+    window.onload = function () {
+      loadFromStorage();
+      renderTable();
+    };
+
+    function loadFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            students = parsed.map(s => ({
+              appNo: s.appNo || s.sno || "",
+              category: s.category || "REGULAR",
+              studentName: s.studentName || "",
+              fatherFull: s.fatherFull || s.fatherName || "",
+              mother: s.mother || "",
+              gender: s.gender || "MALE",
+              dob: s.dob !== undefined ? s.dob : (s.dobPrefix || "0"),
+              status: s.status || "Pending",
+              lastPdfKb: s.lastPdfKb || null
+            }));
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Storage load fallback:", e);
+      }
+      students = [];
+    }
+
+    function saveToStorage() {
+      try {
+        // Remove pdfBlob before saving to prevent localStorage quota exceeded errors
+        const toSave = students.map(s => {
+          const { pdfBlob, ...rest } = s;
+          return rest;
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      } catch (e) {
+        console.warn("Storage write error:", e);
+      }
+      updateStats();
+    }
+
+    function openResetConfirmModal() {
+      document.getElementById("resetConfirmModal").classList.remove("hidden");
+    }
+
+    function closeResetConfirmModal() {
+      document.getElementById("resetConfirmModal").classList.add("hidden");
+    }
+
+    function confirmResetAllData() {
+      students = [];
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("uhs_51860_students_v1");
+      } catch (e) {
+        console.warn("Storage clear error:", e);
+      }
+
+      document.getElementById("searchInput").value = "";
+      document.getElementById("genderFilter").value = "ALL";
+      document.getElementById("categoryFilter").value = "ALL";
+      document.getElementById("statusFilter").value = "ALL";
+
+      closeResetConfirmModal();
+      renderTable();
+      showToast("All student data has been reset.");
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. TABLE RENDERING & INLINE EDITING
+    // -----------------------------------------------------------------------
+    function updateStats() {
+      const total = students.length;
+      const done = students.filter(s => s.status === "PDF Ready" || s.status === "Uploaded").length;
+      const pending = total - done;
+      const males = students.filter(s => (s.gender || "").toUpperCase() === "MALE").length;
+      const females = students.filter(s => (s.gender || "").toUpperCase() === "FEMALE").length;
+
+      document.getElementById("statTotal").textContent = total;
+      document.getElementById("statCompleted").textContent = done;
+      document.getElementById("statPending").textContent = pending;
+      document.getElementById("statGender").textContent = `${males} M / ${females} F`;
+    }
+
+    function renderTable() {
+      updateStats();
+      const tbody = document.getElementById("studentTableBody");
+      const emptyState = document.getElementById("emptyState");
+      const emptyTitle = document.getElementById("emptyStateTitle");
+      const emptyDesc = document.getElementById("emptyStateDesc");
+      const q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
+      const genderF = document.getElementById("genderFilter").value;
+      const categoryF = document.getElementById("categoryFilter").value;
+      const statusF = document.getElementById("statusFilter").value;
+
+      const filtered = students.filter(st => {
+        if (genderF !== "ALL" && (st.gender || "").toUpperCase() !== genderF) return false;
+        if (categoryF !== "ALL" && (st.category || "REGULAR").toUpperCase() !== categoryF) return false;
+        if (statusF !== "ALL" && st.status !== statusF) return false;
+        if (q) {
+          const hay = `${st.appNo} ${st.category} ${st.studentName} ${st.fatherFull} ${st.mother} ${st.gender} ${st.dob}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      tbody.innerHTML = "";
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove("hidden");
+        if (students.length === 0) {
+          emptyTitle.textContent = "No student data loaded";
+          emptyDesc.innerHTML = "Upload a <code>.CSV</code> file to populate the student list, or add a student row manually to start scanning declaration forms.";
+        } else {
+          emptyTitle.textContent = "No matching student records found";
+          emptyDesc.textContent = "Try clearing your search query or changing the active filter selections.";
+        }
+        return;
+      }
+      emptyState.classList.add("hidden");
+
+      filtered.forEach(st => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-indigo-50/40 transition group";
+
+        const isReady = st.status === "PDF Ready";
+        const genderBadge = (st.gender || "").toUpperCase() === "MALE"
+          ? `<span class="px-2 py-0.5 text-[11px] font-bold rounded-md bg-blue-100 text-blue-800">MALE</span>`
+          : `<span class="px-2 py-0.5 text-[11px] font-bold rounded-md bg-pink-100 text-pink-800">FEMALE</span>`;
+
+        const statusBadge = isReady
+          ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+               <i class="fa-solid fa-circle-check text-emerald-600"></i>
+               ${st.lastPdfKb ? st.lastPdfKb + ' KB' : 'PDF Ready'}
+             </span>`
+          : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+               <i class="fa-regular fa-clock"></i> Pending
+             </span>`;
+
+        const appNoArg = JSON.stringify(st.appNo);
+
+        tr.innerHTML = `
+          <td class="py-3 px-3 text-center font-bold text-slate-700">${escapeHtml(st.appNo)}</td>
+          <td class="py-3 px-2 text-center">
+            <input
+              type="text"
+              value="${escapeAttr(st.category || 'REGULAR')}"
+              onchange='updateStudentField(${appNoArg}, "category", this.value)'
+              class="w-24 text-center bg-slate-100 hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-indigo-600 px-2 py-1 text-[11px] font-bold uppercase text-slate-700 outline-none rounded-md"
+            />
+          </td>
+          <td class="py-3 px-3">
+            <input
+              type="text"
+              value="${escapeAttr(st.studentName || '')}"
+              placeholder="Click to enter Student Name..."
+              onchange='updateStudentField(${appNoArg}, "studentName", this.value)'
+              class="w-full bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-600 focus:bg-white px-1.5 py-1 text-xs sm:text-sm font-semibold text-slate-800 outline-none rounded"
+            />
+          </td>
+          <td class="py-3 px-3">
+            <input
+              type="text"
+              value="${escapeAttr(st.fatherFull || '')}"
+              onchange='updateStudentField(${appNoArg}, "fatherFull", this.value)'
+              class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-600 focus:bg-white px-1 py-0.5 text-xs sm:text-sm font-bold text-slate-900 outline-none rounded"
+            />
+          </td>
+          <td class="py-3 px-3">
+            <input
+              type="text"
+              value="${escapeAttr(st.mother || '')}"
+              onchange='updateStudentField(${appNoArg}, "mother", this.value)'
+              class="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-600 focus:bg-white px-1 py-0.5 text-xs sm:text-sm font-semibold text-slate-700 outline-none rounded"
+            />
+          </td>
+          <td class="py-3 px-2 text-center">${genderBadge}</td>
+          <td class="py-3 px-2 text-center">
+            <input
+              type="text"
+              value="${escapeAttr(st.dob !== undefined ? st.dob : '0')}"
+              placeholder="DOB"
+              onchange='updateStudentField(${appNoArg}, "dob", this.value)'
+              class="w-24 text-center font-mono text-xs bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-600 focus:bg-white px-1.5 py-1 text-slate-700 outline-none rounded"
+            />
+          </td>
+          <td class="py-3 px-3 text-center">${statusBadge}</td>
+          <td class="py-3 px-4 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button
+                onclick='openScannerForStudent(${appNoArg})'
+                class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition"
+              >
+                <i class="fa-solid fa-camera"></i>
+                <span>Scan ~250KB</span>
+              </button>
+              <button
+                onclick='toggleStudentStatus(${appNoArg})'
+                title="Toggle Pending / PDF Ready"
+                class="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800 text-xs transition"
+              >
+                <i class="fa-solid fa-check-double"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateStudentField(appNo, field, value) {
+      const target = students.find(s => String(s.appNo) === String(appNo));
+      if (target) {
+        target[field] = value.trim();
+        saveToStorage();
+        showToast(`Updated Row #${appNo}`);
+      }
+    }
+
+    function toggleStudentStatus(appNo) {
+      const target = students.find(s => String(s.appNo) === String(appNo));
+      if (target) {
+        target.status = target.status === "PDF Ready" ? "Pending" : "PDF Ready";
+        saveToStorage();
+        renderTable();
+      }
+    }
+
+    function addNewStudentModal() {
+      const nextAppNo = Date.now().toString().slice(-6); // fallback id
+      students.unshift({
+        appNo: `NEW-${nextAppNo}`,
+        category: "REGULAR",
+        studentName: "",
+        fatherFull: "NEW FATHER NAME",
+        mother: "NEW MOTHER NAME",
+        gender: "MALE",
+        dob: "0",
+        status: "Pending",
+        lastPdfKb: null
+      });
+      saveToStorage();
+      renderTable();
+      showToast(`Added Row #NEW-${nextAppNo} at the top of the table.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. CSV IMPORT & EXPORT
+    // -----------------------------------------------------------------------
+    // One consistent file name per scanned student (used in the ZIP and in the CSV "PDF_File" column)
+    function buildPdfFileNameMap() {
+      const map = new Map();
+      const used = new Set();
+      students.forEach(st => {
+        if (!st.pdfBlob) return;
+        const clean = v => String(v || "").replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+        let baseName = `${clean(st.studentName || "Unknown_Student")}_${clean(st.fatherFull || "Unknown_Father")}`;
+        if (baseName === "_" || baseName === "") baseName = `AppNo_${st.appNo}`;
+        let fileName = `${baseName}.pdf`;
+        let counter = 1;
+        while (used.has(fileName)) { fileName = `${baseName}_${counter}.pdf`; counter++; }
+        used.add(fileName);
+        map.set(st, fileName);
+      });
+      return map;
+    }
+
+    async function exportToZip() {
+      if (students.length === 0) {
+        showToast("Nothing to export. Load a CSV or add rows first.");
+        return;
+      }
+      if (typeof JSZip === "undefined") {
+        showToast("ZIP library did not load. Check your internet connection and reload the page.");
+        return;
+      }
+
+      const PDF_FOLDER = "Declaration_PDFs";
+      const nameMap = buildPdfFileNameMap();
+
+      const headers = ["APP. NO", "Category", "Student Name", "Father Name", "Mother Name", "Gender", "DOB", "Declaration_Status", "PDF_File"];
+      const rows = students.map(s => [
+        csvSafe(s.appNo),
+        csvSafe(s.category || "REGULAR"),
+        csvSafe(s.studentName || ""),
+        csvSafe(s.fatherFull || ""),
+        csvSafe(s.mother || ""),
+        csvSafe(s.gender || ""),
+        csvSafe(s.dob !== undefined ? s.dob : "0"),
+        csvSafe(s.status || "Pending"),
+        csvSafe(nameMap.has(s) ? `${PDF_FOLDER}/${nameMap.get(s)}` : "")
+      ]);
+      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
+
+      showToast("Preparing export ZIP... please wait.");
+      const zip = new JSZip();
+      zip.file(`51860_Chochahi_Chhapra_${students.length}_Students.csv`, csvContent);
+      const folder = zip.folder(PDF_FOLDER);
+      nameMap.forEach((fileName, st) => folder.file(fileName, st.pdfBlob));
+
+      // Rows marked "PDF Ready" whose file is no longer in memory (e.g. page was refreshed)
+      const missing = students.filter(s => /ready/i.test(String(s.status || "")) && !s.pdfBlob).length;
+
+      try {
+        const zipBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `51860_Chochahi_Chhapra_Export_${students.length}_Students.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        let msg = `Exported ZIP: CSV + ${nameMap.size} PDF(s).`;
+        if (nameMap.size === 0) msg = "Exported ZIP with CSV only — no scanned PDFs are in memory yet.";
+        if (missing > 0) msg += ` ${missing} row(s) marked PDF Ready have no file (lost after refresh) — re-scan them.`;
+        showToast(msg);
+      } catch (e) {
+        console.error("ZIP export failed:", e);
+        showToast("Failed to generate the export ZIP.");
+      }
+    }
+
+    function csvSafe(val) {
+      const str = String(val ?? "");
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }
+
+    function handleCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const text = e.target.result;
+        const parsedRows = parseCSVText(text);
+        if (parsedRows.length < 2) {
+          showToast("CSV file appears empty or invalid.");
+          return;
+        }
+
+        const header = parsedRows[0].map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ""));
+        const isCategoryValue = (val) => /^(regular|private|ex-regular|ex regular|betterment|compartmental|improvement)$/i.test(String(val || "").trim());
+        const isGenderValue = (val) => /^(male|female|m|f|transgender|other)$/i.test(String(val || "").trim());
+
+        // 1. Header-based index detection with strict exclusions
+        const findHeaderIdx = (predicate) => header.findIndex(predicate);
+
+        let appNoIdx = findHeaderIdx(h => /^(app\.?\s*no\.?|application|s\.?no\.?|s_no|sr\.?\s*no\.?|serial\s*no|sl\.?\s*no|id|reg.*no|registration.*id|ref.*id)$/.test(h));
+        let categoryIdx = findHeaderIdx(h => h.includes("category") || h.includes("student_category") || h.includes("reg_type") || h === "type" || h.includes("student type"));
+
+        let studentIdx = findHeaderIdx(h =>
+          (h === "name" || h === "student" || h.includes("student name") || h.includes("student_name") || h.includes("candidate name") || h.includes("candidate_name") || h.includes("applicant name") || h.includes("applicant_name") || (h.includes("student") && h.includes("name"))) &&
+          !h.includes("father") && !h.includes("mother") && !h.includes("school") && !h.includes("category") && !h.includes("type") && !h.includes("id") && !h.includes("code") && !h.includes("user") && !h.includes("status")
+        );
+
+        // Strict check to ensure father does not match mother
+        let fatherIdx = findHeaderIdx(h => (h.includes("father") || h === "father name" || h.includes("father_name")) && !h.includes("mother"));
+        let motherIdx = findHeaderIdx(h => h.includes("mother"));
+        let genderIdx = findHeaderIdx(h => h.includes("gender") || h === "sex");
+        let dobIdx = findHeaderIdx(h => h.includes("dob") || h.includes("date_of_birth") || h.includes("birth_date") || h.includes("dob_prefix") || h.includes("birth") || h === "d");
+        let statusIdx = findHeaderIdx(h => h.includes("status") || h.includes("declaration"));
+
+        // 2. Inspect first non-empty data row to resolve positional shifts or "REGULAR" category columns
+        const sampleRow = parsedRows.slice(1).find(r => r && r.some(c => c && c.trim() !== "")) || [];
+
+        if (categoryIdx === -1) {
+          categoryIdx = sampleRow.findIndex(c => isCategoryValue(c));
+        }
+
+        if (genderIdx === -1) {
+          genderIdx = sampleRow.findIndex(c => isGenderValue(c));
+        }
+
+        // If Father & Mother indices aren't found by header, infer from Gender column position
+        if (genderIdx >= 2) {
+          if (motherIdx === -1) motherIdx = genderIdx - 1;
+          if (fatherIdx === -1) fatherIdx = genderIdx - 2;
+        }
+
+        // Check if studentIdx is missing or accidentally points to a Category column ("REGULAR", "PRIVATE", etc.)
+        if (studentIdx === -1 || studentIdx === categoryIdx || isCategoryValue(sampleRow[studentIdx])) {
+          const upperBound = fatherIdx > 0 ? fatherIdx : sampleRow.length;
+          let candidateIdx = -1;
+
+          for (let cIdx = upperBound - 1; cIdx >= 0; cIdx--) {
+            if (cIdx === appNoIdx || cIdx === categoryIdx) continue;
+            const hName = header[cIdx] || "";
+            if (hName.includes("category") || hName.includes("type") || hName.includes("code") || hName.includes("id") || hName.includes("page") || hName === "pg" || hName.includes("s.no") || hName.includes("s_no")) {
+              continue;
+            }
+            const sampleVal = (sampleRow[cIdx] || "").trim();
+            if (!isCategoryValue(sampleVal) && !/^\d+$/.test(sampleVal) && !/^P\d+$/i.test(sampleVal)) {
+              candidateIdx = cIdx;
+              break;
+            }
+          }
+
+          if (candidateIdx !== -1) {
+            studentIdx = candidateIdx;
+          } else if (studentIdx === -1) {
+            studentIdx = 2;
+          }
+        }
+
+        const hasLegacyOcrCol = header.some(h => h.includes("ocr") || h.includes("clipped"));
+        const imported = [];
+
+        for (let i = 1; i < parsedRows.length; i++) {
+          const cols = parsedRows[i];
+          if (!cols || (cols.length === 1 && !cols[0].trim())) continue;
+
+          const safeVal = (idx, fallbackIdx) => {
+            if (idx !== -1 && idx < cols.length && cols[idx] !== undefined) return cols[idx].trim();
+            if (fallbackIdx !== null && fallbackIdx !== -1 && fallbackIdx < cols.length && cols[fallbackIdx] !== undefined) return cols[fallbackIdx].trim();
+            return "";
+          };
+
+          const fIdxActual = fatherIdx !== -1 ? fatherIdx : 3;
+          let stName = safeVal(studentIdx, 2);
+          let catVal = categoryIdx !== -1 ? safeVal(categoryIdx, null) : "";
+
+          // Per-row guard: if stName is a category keyword ("REGULAR", etc.), capture it for Category and check adjacent column for Student Name
+          if (isCategoryValue(stName)) {
+            if (!catVal) catVal = stName.toUpperCase();
+            if (fIdxActual > 3 && cols[fIdxActual - 1] && !isCategoryValue(cols[fIdxActual - 1])) {
+              stName = cols[fIdxActual - 1].trim();
+            } else if (cols[3] && fIdxActual !== 3 && !isCategoryValue(cols[3])) {
+              stName = cols[3].trim();
+            } else {
+              stName = "";
+            }
+          }
+
+          if (!catVal || /^\d+$/.test(catVal) || /^P\d+$/i.test(catVal)) {
+            catVal = "REGULAR";
+          }
+
+          const rawAppNo = safeVal(appNoIdx, 0);
+          const rawStatus = safeVal(statusIdx, 7) || "Pending";
+          const normalizedStatus = rawStatus.toLowerCase().includes("pending") ? "Pending" : rawStatus;
+
+          imported.push({
+            appNo: rawAppNo || i,
+            category: catVal.toUpperCase(),
+            studentName: stName,
+            fatherFull: safeVal(fatherIdx, 3),
+            mother: safeVal(motherIdx, 4),
+            gender: (safeVal(genderIdx, 5) || "MALE").toUpperCase(),
+            dob: safeVal(dobIdx, 6) || "0",
+            status: normalizedStatus,
+            lastPdfKb: null,
+            rawRow: cols
+          });
+        }
+
+        if (imported.length > 0) {
+          students = imported;
+          saveToStorage();
+          renderTable();
+          showToast(`Loaded ${imported.length} students from ${file.name}!`);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    }
+
+    function parseCSVText(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentVal = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+
+        if (inQuotes) {
+          if (ch === '"' && next === '"') {
+            currentVal += '"';
+            i++;
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            currentVal += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ",") {
+            currentRow.push(currentVal);
+            currentVal = "";
+          } else if (ch === "\n" || (ch === "\r" && next === "\n")) {
+            if (ch === "\r") i++;
+            currentRow.push(currentVal);
+            rows.push(currentRow);
+            currentRow = [];
+            currentVal = "";
+          } else {
+            currentVal += ch;
+          }
+        }
+      }
+      if (currentVal.length > 0 || currentRow.length > 0) {
+        currentRow.push(currentVal);
+        rows.push(currentRow);
+      }
+      return rows;
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. DECLARATION SCANNER & SMART PDF COMPRESSOR (~250 KB)
+    // -----------------------------------------------------------------------
+    function openScannerForStudent(appNo) {
+      // FIX: Explicitly clear previous scans to prevent state leakage to the next student
+      clearScannerPages();
+
+      activeStudentAppNo = appNo;
+      const st = students.find(s => String(s.appNo) === String(appNo));
+      const modal = document.getElementById("scannerModal");
+      modal.classList.remove("hidden");
+
+      if (st) {
+        const cleanFather = (st.fatherFull || "Student").replace(/[^a-zA-Z0-9]+/g, "_");
+        const cleanStudent = st.studentName ? st.studentName.replace(/[^a-zA-Z0-9]+/g, "_") + "_" : "";
+        const paddedAppNo = String(st.appNo);
+        document.getElementById("pdfFilenameInput").value = `AppNo_${paddedAppNo}_${cleanStudent}F_${cleanFather}_Declaration.pdf`;
+        document.getElementById("scannerStudentSub").innerHTML =
+          `Scanning for <strong>APP. NO #${st.appNo}</strong> &bull; Father: <strong class="text-amber-300">${escapeHtml(st.fatherFull)}</strong> &bull; Mother: <strong>${escapeHtml(st.mother)}</strong> (${st.gender})`;
+      }
+
+      updatePageTabs();
+    }
+
+    function openStandaloneScanner() {
+      // FIX: Explicitly clear previous scans to start completely fresh
+      clearScannerPages();
+
+      activeStudentAppNo = null;
+      const modal = document.getElementById("scannerModal");
+      modal.classList.remove("hidden");
+      document.getElementById("pdfFilenameInput").value = `51860_Declaration_Scan.pdf`;
+      document.getElementById("scannerStudentSub").textContent = "Standalone Scanner Mode — Capture or upload any declaration form to compress to ~250 KB";
+
+      updatePageTabs();
+    }
+
+    function closeScannerModal() {
+      document.getElementById("scannerModal").classList.add("hidden");
+    }
+
+    function clearScannerPages() {
+      scannedPages = [];
+      activePageIndex = 0;
+      const canvas = document.getElementById("previewCanvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = 600;
+      canvas.height = 800;
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#64748b";
+      ctx.font = "600 16px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Capture with Camera or Upload Form Image", 300, 400);
+      updatePageTabs();
+      document.getElementById("estSizeText").textContent = "0 KB";
+    }
+
+    function handleImageSelect(event) {
+      const files = Array.from(event.target.files || []);
+      if (files.length === 0) return;
+
+      // FIX: Explicitly clear all previous images whenever a new file is uploaded 
+      // to ensure no accidental carry-over or appending from older interactions
+      scannedPages = [];
+
+      // Initialize the cropping queue for sequential processing
+      cropQueue = files;
+      cropProcessedCount = 0;
+      processCropQueue();
+
+      event.target.value = "";
+    }
+
+    function processCropQueue() {
+      // If queue is empty, finalize and pass to the enhancement pipeline
+      if (cropQueue.length === 0) {
+        if (cropProcessedCount > 0) {
+          activePageIndex = scannedPages.length - 1;
+          updatePageTabs();
+          recalculatePreviewAndSize();
+          showToast(`Successfully cropped and loaded ${cropProcessedCount} scan page(s).`);
+        }
+        return;
+      }
+
+      // Read next file in queue
+      const file = cropQueue.shift();
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        openCropperModal(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function openLegacyCropper(imageSrc) {
+      const modal = document.getElementById("cropperModal");
+      const imgElement = document.getElementById("cropperImage");
+
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+
+      modal.classList.remove("hidden");
+      imgElement.onload = function () {
+        imgElement.onload = null;
+        if (cropper) cropper.destroy();
+        cropper = new Cropper(imgElement, {
+          viewMode: 1,
+          autoCropArea: 0.95,
+          background: false,
+          zoomable: true,
+          rotatable: true
+        });
+      };
+      imgElement.src = imageSrc;
+    }
+
+    function closeCropperModal() {
+      document.getElementById("cropperModal").classList.add("hidden");
+      if (cropper) {
+        cropper.destroy();
+        cropper = null;
+      }
+      // Abort any remaining images in the queue if user cancels
+      cropQueue = []; 
+    }
+
+    function rotateCropper(degree) {
+      if (cropper) cropper.rotate(degree);
+    }
+
+    function applyCrop() {
+      if (!cropper) return;
+      
+      // Get cropped canvas area
+      const canvas = cropper.getCroppedCanvas({
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+        maxWidth: 2400,
+        maxHeight: 2400
+      });
+      if (!canvas) { showToast("Could not crop this image. Please try again."); return; }
+      
+      const img = new Image();
+      img.onload = function() {
+        // Push final cropped image into scanner pages array
+        scannedPages.push({ imgElement: img, rotation: 0, isSample: false });
+        cropProcessedCount++;
+        
+        document.getElementById("cropperModal").classList.add("hidden");
+        if (cropper) {
+          cropper.destroy();
+          cropper = null;
+        }
+        
+        // Process the next image in the queue (if multiple uploaded)
+        processCropQueue();
+      };
+      
+      // Convert cropped canvas to data URL and trigger load
+      img.src = canvas.toDataURL("image/jpeg", 1.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // AUTO DOCUMENT DETECTION + PERSPECTIVE CORRECTION
+    // -----------------------------------------------------------------------
+    function boxBlurGray(src, w, h, r) {
+      const tmp = new Float32Array(w * h);
+      const out = new Float32Array(w * h);
+      const n = 2 * r + 1;
+      for (let y = 0; y < h; y++) {
+        const row = y * w;
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += src[row + Math.min(w - 1, Math.max(0, k))];
+        for (let x = 0; x < w; x++) {
+          tmp[row + x] = sum / n;
+          sum += src[row + Math.min(w - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+        }
+      }
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += tmp[Math.min(h - 1, Math.max(0, k)) * w + x];
+        for (let y = 0; y < h; y++) {
+          out[y * w + x] = sum / n;
+          sum += tmp[Math.min(h - 1, y + r + 1) * w + x] - tmp[Math.max(0, y - r) * w + x];
+        }
+      }
+      return out;
+    }
+
+    function otsuThreshold(gray) {
+      const hist = new Array(256).fill(0);
+      for (let i = 0; i < gray.length; i++) hist[Math.max(0, Math.min(255, gray[i] | 0))]++;
+      const total = gray.length;
+      let sumAll = 0;
+      for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+      let sumB = 0, wB = 0, best = 0, thr = 128;
+      for (let t = 0; t < 256; t++) {
+        wB += hist[t];
+        if (wB === 0) continue;
+        const wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB, mF = (sumAll - sumB) / wF;
+        const between = wB * wF * (mB - mF) * (mB - mF);
+        if (between > best) { best = between; thr = t; }
+      }
+      return thr;
+    }
+
+    function findMaskComponents(mask, w, h, minArea) {
+      const visited = new Uint8Array(w * h);
+      const stack = new Int32Array(w * h);
+      const comps = [];
+      for (let s = 0; s < w * h; s++) {
+        if (!mask[s] || visited[s]) continue;
+        let sp = 0;
+        stack[sp++] = s;
+        visited[s] = 1;
+        let area = 0;
+        let minSum = Infinity, maxSum = -Infinity, minDiff = Infinity, maxDiff = -Infinity;
+        let tl = null, br = null, tr = null, bl = null;
+        while (sp > 0) {
+          const p = stack[--sp];
+          const x = p % w, y = (p / w) | 0;
+          area++;
+          const sum = x + y, diff = x - y;
+          if (sum < minSum) { minSum = sum; tl = { x, y }; }
+          if (sum > maxSum) { maxSum = sum; br = { x: x + 1, y: y + 1 }; }
+          if (diff > maxDiff) { maxDiff = diff; tr = { x: x + 1, y }; }
+          if (diff < minDiff) { minDiff = diff; bl = { x, y: y + 1 }; }
+          if (x > 0 && mask[p - 1] && !visited[p - 1]) { visited[p - 1] = 1; stack[sp++] = p - 1; }
+          if (x < w - 1 && mask[p + 1] && !visited[p + 1]) { visited[p + 1] = 1; stack[sp++] = p + 1; }
+          if (y > 0 && mask[p - w] && !visited[p - w]) { visited[p - w] = 1; stack[sp++] = p - w; }
+          if (y < h - 1 && mask[p + w] && !visited[p + w]) { visited[p + w] = 1; stack[sp++] = p + w; }
+        }
+        if (area >= minArea) comps.push({ area, quad: [tl, tr, br, bl] });
+      }
+      return comps;
+    }
+
+    function polyArea(q) {
+      let a = 0;
+      for (let i = 0; i < 4; i++) {
+        const p = q[i], n = q[(i + 1) % 4];
+        a += p.x * n.y - n.x * p.y;
+      }
+      return Math.abs(a) / 2;
+    }
+
+    function isConvexQuad(q) {
+      let sign = 0;
+      for (let i = 0; i < 4; i++) {
+        const a = q[i], b = q[(i + 1) % 4], c = q[(i + 2) % 4];
+        const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        if (Math.abs(cross) < 1e-6) return false;
+        const s = cross > 0 ? 1 : -1;
+        if (sign === 0) sign = s; else if (s !== sign) return false;
+      }
+      return true;
+    }
+
+    // rgba: Uint8ClampedArray of a small (<= ~500px) image. Returns { pts:[TL,TR,BR,BL], score } or null
+    function detectDocQuadFromRGBA(rgba, w, h) {
+      let gray = new Float32Array(w * h);
+      for (let i = 0, p = 0; i < gray.length; i++, p += 4) {
+        gray[i] = 0.299 * rgba[p] + 0.587 * rgba[p + 1] + 0.114 * rgba[p + 2];
+      }
+      // Heavy blur removes printed text so the whole sheet becomes one solid region
+      gray = boxBlurGray(gray, w, h, 3);
+      gray = boxBlurGray(gray, w, h, 3);
+      const thr = otsuThreshold(gray);
+      const minArea = w * h * 0.10;
+
+      let best = null;
+      for (const bright of [true, false]) {
+        const mask = new Uint8Array(w * h);
+        for (let i = 0; i < mask.length; i++) mask[i] = (bright ? gray[i] > thr : gray[i] <= thr) ? 1 : 0;
+        const comps = findMaskComponents(mask, w, h, minArea);
+        for (const c of comps) {
+          const qa = polyArea(c.quad);
+          if (qa < 1 || !isConvexQuad(c.quad)) continue;
+          const fill = c.area / qa;           // 1.0 = region is a perfect quadrilateral
+          const areaFrac = qa / (w * h);
+          if (fill < 0.72 || fill > 1.15 || areaFrac < 0.12 || areaFrac > 0.97) continue;
+          const score = Math.min(fill, 1) * 0.65 + Math.min(areaFrac, 1) * 0.35 + (bright ? 0.03 : 0);
+          if (!best || score > best.score) best = { pts: c.quad, score };
+        }
+      }
+      return best;
+    }
+
+    function solveLinear(A, b) {
+      const n = b.length;
+      for (let i = 0; i < n; i++) {
+        let max = i;
+        for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[max][i])) max = r;
+        [A[i], A[max]] = [A[max], A[i]];
+        [b[i], b[max]] = [b[max], b[i]];
+        for (let r = i + 1; r < n; r++) {
+          const f = A[r][i] / A[i][i];
+          for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+          b[r] -= f * b[i];
+        }
+      }
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        let s = b[i];
+        for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c];
+        x[i] = s / A[i][i];
+      }
+      return x;
+    }
+
+    // Maps destination (u,v) -> source (x,y)
+    function solveHomography(dst, src) {
+      const A = [], b = [];
+      for (let i = 0; i < 4; i++) {
+        const u = dst[i].x, v = dst[i].y, x = src[i].x, y = src[i].y;
+        A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]); b.push(x);
+        A.push([0, 0, 0, u, v, 1, -u * y, -v * y]); b.push(y);
+      }
+      return solveLinear(A, b);
+    }
+
+    function quadOutputSize(q, maxOut) {
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+      let W = Math.max(dist(q[0], q[1]), dist(q[3], q[2]));
+      let H = Math.max(dist(q[0], q[3]), dist(q[1], q[2]));
+      const s = Math.min(1, maxOut / Math.max(W, H, 1));
+      return { W: Math.max(2, Math.round(W * s)), H: Math.max(2, Math.round(H * s)) };
+    }
+
+    function warpPerspectiveRGBA(srcData, sw, sh, q, W, H) {
+      const dstPts = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+      const m = solveHomography(dstPts, q);
+      const out = new Uint8ClampedArray(W * H * 4);
+      for (let v = 0; v < H; v++) {
+        for (let u = 0; u < W; u++) {
+          const uu = u + 0.5, vv = v + 0.5;
+          const den = m[6] * uu + m[7] * vv + 1;
+          let x = (m[0] * uu + m[1] * vv + m[2]) / den - 0.5;
+          let y = (m[3] * uu + m[4] * vv + m[5]) / den - 0.5;
+          x = x < 0 ? 0 : x > sw - 1 ? sw - 1 : x;
+          y = y < 0 ? 0 : y > sh - 1 ? sh - 1 : y;
+          const x0 = x | 0, y0 = y | 0;
+          const x1 = x0 + 1 < sw ? x0 + 1 : x0, y1 = y0 + 1 < sh ? y0 + 1 : y0;
+          const fx = x - x0, fy = y - y0;
+          const i00 = (y0 * sw + x0) * 4, i10 = (y0 * sw + x1) * 4;
+          const i01 = (y1 * sw + x0) * 4, i11 = (y1 * sw + x1) * 4;
+          const o = (v * W + u) * 4;
+          for (let c = 0; c < 3; c++) {
+            const top = srcData[i00 + c] * (1 - fx) + srcData[i10 + c] * fx;
+            const bot = srcData[i01 + c] * (1 - fx) + srcData[i11 + c] * fx;
+            out[o + c] = top * (1 - fy) + bot * fy;
+          }
+          out[o + 3] = 255;
+        }
+      }
+      return out;
+    }
+
+    // ---- Corner editor state & UI ----
+    let cornerSrc = null;      // canvas holding the (rotated) source photo, max 3000px
+    let cornerPts = [];        // [TL,TR,BR,BL] in cornerSrc pixel coordinates
+    let cornerScale = 1;       // display px per source px
+    let cornerDrag = -1;
+
+    function detectDocumentCorners(srcCanvas) {
+      const sc = Math.min(1, 480 / Math.max(srcCanvas.width, srcCanvas.height));
+      const w = Math.max(16, Math.round(srcCanvas.width * sc));
+      const h = Math.max(16, Math.round(srcCanvas.height * sc));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(srcCanvas, 0, 0, w, h);
+      const res = detectDocQuadFromRGBA(ctx.getImageData(0, 0, w, h).data, w, h);
+      if (!res) return null;
+      const kx = srcCanvas.width / w, ky = srcCanvas.height / h;
+      return res.pts.map(p => ({
+        x: Math.min(srcCanvas.width, Math.max(0, p.x * kx)),
+        y: Math.min(srcCanvas.height, Math.max(0, p.y * ky))
+      }));
+    }
+
+    function defaultFullQuad() {
+      const m = 0.03, W = cornerSrc.width, H = cornerSrc.height;
+      return [
+        { x: W * m, y: H * m }, { x: W * (1 - m), y: H * m },
+        { x: W * (1 - m), y: H * (1 - m) }, { x: W * m, y: H * (1 - m) }
+      ];
+    }
+
+    function openCropperModal(imageSrc) {
+      // Entry point used by the upload queue: opens the auto-corner editor
+      openCornerModal(imageSrc);
+    }
+
+    function openCornerModal(imageSrc) {
+      const modal = document.getElementById("cornerModal");
+      modal.classList.remove("hidden");
+      const img = new Image();
+      img.onload = function () {
+        const sc = Math.min(1, 3000 / Math.max(img.naturalWidth, img.naturalHeight));
+        cornerSrc = document.createElement("canvas");
+        cornerSrc.width = Math.round(img.naturalWidth * sc);
+        cornerSrc.height = Math.round(img.naturalHeight * sc);
+        cornerSrc.getContext("2d").drawImage(img, 0, 0, cornerSrc.width, cornerSrc.height);
+        runAutoDetect(true);
+      };
+      img.onerror = function () {
+        showToast("Could not read this image. Please try another photo.");
+        closeCornerModal();
+      };
+      img.src = imageSrc;
+    }
+
+    function runAutoDetect(isFirst) {
+      if (!cornerSrc) return;
+      const found = detectDocumentCorners(cornerSrc);
+      const status = document.getElementById("cornerStatus");
+      if (found) {
+        cornerPts = found;
+        status.className = "text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5";
+        status.innerHTML = '<i class="fa-solid fa-circle-check"></i> Document detected — check the 4 corners, drag any to fine-tune.';
+      } else {
+        cornerPts = defaultFullQuad();
+        status.className = "text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5";
+        status.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Could not detect edges automatically — drag the 4 corners onto the document corners.';
+      }
+      layoutCornerCanvas();
+    }
+
+    function layoutCornerCanvas() {
+      if (!cornerSrc) return;
+      const stage = document.getElementById("cornerStage");
+      const cv = document.getElementById("cornerCanvas");
+      const aw = Math.max(120, stage.clientWidth - 16);
+      const ah = Math.max(120, stage.clientHeight - 16);
+      cornerScale = Math.min(aw / cornerSrc.width, ah / cornerSrc.height);
+      cv.width = Math.max(1, Math.round(cornerSrc.width * cornerScale));
+      cv.height = Math.max(1, Math.round(cornerSrc.height * cornerScale));
+      cv.style.width = cv.width + "px";
+      cv.style.height = cv.height + "px";
+      drawCornerCanvas();
+    }
+
+    function drawCornerCanvas() {
+      const cv = document.getElementById("cornerCanvas");
+      const ctx = cv.getContext("2d");
+      const s = cornerScale;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(cornerSrc, 0, 0, cv.width, cv.height);
+
+      // dim everything outside the quad
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, cv.width, cv.height);
+      ctx.moveTo(cornerPts[0].x * s, cornerPts[0].y * s);
+      for (let i = 1; i < 4; i++) ctx.lineTo(cornerPts[i].x * s, cornerPts[i].y * s);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(15,23,42,0.5)";
+      ctx.fill("evenodd");
+      ctx.restore();
+
+      // quad outline
+      ctx.beginPath();
+      ctx.moveTo(cornerPts[0].x * s, cornerPts[0].y * s);
+      for (let i = 1; i < 4; i++) ctx.lineTo(cornerPts[i].x * s, cornerPts[i].y * s);
+      ctx.closePath();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#10b981";
+      ctx.stroke();
+
+      // handles
+      cornerPts.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.arc(p.x * s, p.y * s, i === cornerDrag ? 14 : 12, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#059669";
+        ctx.stroke();
+      });
+
+      // magnifier loupe while dragging
+      if (cornerDrag >= 0) {
+        const p = cornerPts[cornerDrag];
+        const R = 58, zoom = 2.6;
+        const lx = (p.x * s < cv.width / 2) ? cv.width - R - 10 : R + 10;
+        const ly = R + 10;
+        const region = (2 * R) / (s * zoom);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(lx, ly, R, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(lx - R, ly - R, 2 * R, 2 * R);
+        ctx.drawImage(cornerSrc, p.x - region / 2, p.y - region / 2, region, region, lx - R, ly - R, 2 * R, 2 * R);
+        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(lx, ly, R, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#10b981";
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(lx - 12, ly); ctx.lineTo(lx + 12, ly);
+        ctx.moveTo(lx, ly - 12); ctx.lineTo(lx, ly + 12);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#ef4444";
+        ctx.stroke();
+      }
+    }
+
+    function cornerPointerPos(e) {
+      const cv = document.getElementById("cornerCanvas");
+      const r = cv.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
+    }
+
+    function initCornerCanvasEvents() {
+      const cv = document.getElementById("cornerCanvas");
+      cv.addEventListener("pointerdown", function (e) {
+        if (!cornerSrc) return;
+        const pos = cornerPointerPos(e);
+        let best = -1, bestD = 40;
+        cornerPts.forEach((p, i) => {
+          const d = Math.hypot(p.x * cornerScale - pos.x, p.y * cornerScale - pos.y);
+          if (d < bestD) { bestD = d; best = i; }
+        });
+        if (best >= 0) {
+          cornerDrag = best;
+          cv.setPointerCapture(e.pointerId);
+          e.preventDefault();
+          drawCornerCanvas();
+        }
+      });
+      cv.addEventListener("pointermove", function (e) {
+        if (cornerDrag < 0) return;
+        const pos = cornerPointerPos(e);
+        cornerPts[cornerDrag] = {
+          x: Math.min(cornerSrc.width, Math.max(0, pos.x / cornerScale)),
+          y: Math.min(cornerSrc.height, Math.max(0, pos.y / cornerScale))
+        };
+        drawCornerCanvas();
+      });
+      const end = function () {
+        if (cornerDrag >= 0) { cornerDrag = -1; drawCornerCanvas(); }
+      };
+      cv.addEventListener("pointerup", end);
+      cv.addEventListener("pointercancel", end);
+      window.addEventListener("resize", function () {
+        if (!document.getElementById("cornerModal").classList.contains("hidden")) layoutCornerCanvas();
+      });
+    }
+
+    function rotateCornerSource(deg) {
+      if (!cornerSrc) return;
+      const old = cornerSrc;
+      const c = document.createElement("canvas");
+      c.width = old.height; c.height = old.width;
+      const ctx = c.getContext("2d");
+      ctx.translate(c.width / 2, c.height / 2);
+      ctx.rotate(deg * Math.PI / 180);
+      ctx.drawImage(old, -old.width / 2, -old.height / 2);
+      cornerSrc = c;
+      runAutoDetect(false);
+    }
+
+    function resetCornersToFull() {
+      if (!cornerSrc) return;
+      cornerPts = [
+        { x: 0, y: 0 }, { x: cornerSrc.width, y: 0 },
+        { x: cornerSrc.width, y: cornerSrc.height }, { x: 0, y: cornerSrc.height }
+      ];
+      drawCornerCanvas();
+    }
+
+    function closeCornerModal() {
+      document.getElementById("cornerModal").classList.add("hidden");
+      cornerSrc = null;
+      cornerDrag = -1;
+      cropQueue = [];
+      // keep pages that were already cropped from this batch
+      if (cropProcessedCount > 0) processCropQueue();
+    }
+
+    function applyCornerCrop() {
+      if (!cornerSrc || cornerPts.length !== 4) return;
+      if (!isConvexQuad(cornerPts)) {
+        showToast("Corners are crossed — drag them so they form a four-sided shape.");
+        return;
+      }
+      const { W, H } = quadOutputSize(cornerPts, 2400);
+      const sctx = cornerSrc.getContext("2d", { willReadFrequently: true });
+      const srcData = sctx.getImageData(0, 0, cornerSrc.width, cornerSrc.height).data;
+      const outData = warpPerspectiveRGBA(srcData, cornerSrc.width, cornerSrc.height, cornerPts, W, H);
+      const out = document.createElement("canvas");
+      out.width = W; out.height = H;
+      out.getContext("2d").putImageData(new ImageData(outData, W, H), 0, 0);
+
+      const img = new Image();
+      img.onload = function () {
+        scannedPages.push({ imgElement: img, rotation: 0, isSample: false });
+        cropProcessedCount++;
+        document.getElementById("cornerModal").classList.add("hidden");
+        cornerSrc = null;
+        processCropQueue();
+      };
+      img.src = out.toDataURL("image/jpeg", 0.95);
+    }
+
+    function switchToStandardCrop() {
+      if (!cornerSrc) return;
+      const dataUrl = cornerSrc.toDataURL("image/jpeg", 0.92);
+      document.getElementById("cornerModal").classList.add("hidden");
+      cornerSrc = null;
+      openLegacyCropper(dataUrl);
+    }
+
+    function switchToCornerMode() {
+      const imgElement = document.getElementById("cropperImage");
+      const src = imgElement.src;
+      if (cropper) { cropper.destroy(); cropper = null; }
+      document.getElementById("cropperModal").classList.add("hidden");
+      openCornerModal(src);
+    }
+
+    window.addEventListener("DOMContentLoaded", initCornerCanvasEvents);
+
+    // Generates a realistic sample Hindi/English Declaration Form on an offscreen canvas so user can immediately test compression
+    function loadSampleDeclarationForm() {
+      const st = students.find(s => String(s.appNo) === String(activeStudentAppNo)) || {
+        appNo: "518601459288",
+        category: "REGULAR",
+        studentName: "ROHIT KUMAR",
+        fatherFull: "MD KHUSNUR ALAM",
+        mother: "KHUSHBOO KHATOON",
+        gender: "MALE"
+      };
+
+      const off = document.createElement("canvas");
+      off.width = 1240;
+      off.height = 1754; // High-res A4 ratio
+      const ctx = off.getContext("2d");
+
+      // Slightly warm paper background to simulate phone camera photo
+      const grad = ctx.createLinearGradient(0, 0, 1240, 1754);
+      grad.addColorStop(0, "#f4f1ea");
+      grad.addColorStop(1, "#e9e5dc");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1240, 1754);
+
+      // Border
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(60, 60, 1120, 1634);
+
+      // Header
+      ctx.fillStyle = "#0f172a";
+      ctx.textAlign = "center";
+      ctx.font = "bold 34px Inter, sans-serif";
+      ctx.fillText("BIHAR SCHOOL EXAMINATION BOARD, PATNA", 620, 140);
+      ctx.font = "bold 26px Inter, sans-serif";
+      ctx.fillText("51860 - UCHCH MADHYAMIK VIDYALAYA CHOCHAHI CHHAPRA", 620, 190);
+      ctx.font = "bold 28px Inter, sans-serif";
+      ctx.fillText("STUDENT REGISTRATION DECLARATION FORM (घोषणा पत्र)", 620, 250);
+
+      ctx.beginPath();
+      ctx.moveTo(100, 280);
+      ctx.lineTo(1140, 280);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Fields
+      ctx.textAlign = "left";
+      ctx.font = "bold 24px Inter, sans-serif";
+      const rows = [
+        ["School Code & Name :", "51860 - UHS CHOCHAHI CHHAPRA"],
+        ["Application No (APP. NO) :", `#${st.appNo}`],
+        ["Student Name :", st.studentName || "(To be filled / Verified)"],
+        ["Father's Name :", st.fatherFull],
+        ["Mother's Name :", st.mother],
+        ["Gender :", st.gender]
+      ];
+
+      let y = 360;
+      rows.forEach(([label, val]) => {
+        ctx.fillStyle = "#334155";
+        ctx.fillText(label, 120, y);
+        ctx.fillStyle = "#0f172a";
+        ctx.fillText(String(val), 430, y);
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(425, y + 10);
+        ctx.lineTo(1080, y + 10);
+        ctx.stroke();
+        y += 75;
+      });
+
+      // Photo Box
+      ctx.strokeStyle = "#1e293b";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(900, 320, 200, 240);
+      ctx.font = "600 18px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Student Photo", 1000, 440);
+
+      // Declaration Paragraph
+      ctx.textAlign = "left";
+      ctx.font = "500 22px Inter, sans-serif";
+      ctx.fillStyle = "#1e293b";
+      const declLines = [
+        "प्रमाणित किया जाता है कि ऊपर दिए गए सभी विवरण (विद्यार्थी का नाम, पिता का नाम,",
+        "माता का नाम, लिंग एवं जन्म तिथि) मेरे द्वारा भली-भांति जांच लिए गए हैं और पूर्णतः सत्य हैं।",
+        "",
+        "I hereby declare that all registration particulars printed above have been",
+        "verified by me and my parent/guardian and found completely correct."
+      ];
+      let dy = 890;
+      declLines.forEach(line => {
+        ctx.fillText(line, 120, dy);
+        dy += 44;
+      });
+
+      // Signature Boxes
+      const sigY = 1350;
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(120, sigY, 300, 120);
+      ctx.strokeRect(470, sigY, 300, 120);
+      ctx.strokeRect(820, sigY, 300, 120);
+
+      // Simulated Cursive Signatures
+      ctx.font = "italic bold 26px serif";
+      ctx.fillStyle = "#1d4ed8";
+      ctx.fillText(st.studentName || "Student Sign", 160, sigY + 70);
+      ctx.fillText(st.fatherFull.split(" ")[0] + " Sign", 520, sigY + 70);
+      ctx.fillText("Principal Seal", 880, sigY + 70);
+
+      ctx.font = "bold 20px Inter, sans-serif";
+      ctx.fillStyle = "#0f172a";
+      ctx.fillText("Student Signature", 175, sigY + 155);
+      ctx.fillText("Parent/Guardian Sign", 510, sigY + 155);
+      ctx.fillText("Headmaster Seal & Sign", 850, sigY + 155);
+
+      const sampleImg = new Image();
+      sampleImg.onload = function () {
+        scannedPages = [{ imgElement: sampleImg, rotation: 0, isSample: true }];
+        activePageIndex = 0;
+        updatePageTabs();
+        recalculatePreviewAndSize();
+      };
+      sampleImg.src = off.toDataURL("image/jpeg", 0.92);
+    }
+
+    function updatePageTabs() {
+      const badge = document.getElementById("pageCountBadge");
+      badge.textContent = `${scannedPages.length} Page${scannedPages.length === 1 ? "" : "s"}`;
+
+      const container = document.getElementById("multiPageTabs");
+      container.innerHTML = "";
+      if (scannedPages.length <= 1) return;
+
+      scannedPages.forEach((_, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = `P${idx + 1}`;
+        btn.className = idx === activePageIndex
+          ? "px-2 py-0.5 text-xs font-bold rounded bg-indigo-600 text-white"
+          : "px-2 py-0.5 text-xs font-medium rounded bg-slate-800 text-slate-400 hover:text-white";
+        btn.onclick = () => {
+          activePageIndex = idx;
+          updatePageTabs();
+          recalculatePreviewAndSize();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function setFilterMode(mode) {
+      currentFilterMode = mode;
+      ["magic", "bw", "gray", "color"].forEach(m => {
+        const btn = document.getElementById("btnFilter_" + m);
+        if (m === mode) {
+          btn.className = "filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-indigo-600 bg-indigo-600 text-white flex items-center gap-2";
+        } else {
+          btn.className = "filter-btn px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 bg-white text-slate-700 flex items-center gap-2";
+        }
+      });
+
+      recalculatePreviewAndSize();
+    }
+
+    // Fixed per-mode tone settings (manual brightness/contrast intentionally disabled)
+    const FILTER_PRESETS = {
+      magic: { brightness: 1.04, contrast: 1.22 },  // gentle: keeps ink & colour tone, whitens paper
+      bw:    { brightness: 1.12, contrast: 2.70 },  // strong: pure black text on white
+      gray:  { brightness: 1.03, contrast: 1.20 },
+      color: { brightness: 1.00, contrast: 1.00 }   // untouched original colours
+    };
+
+    function rotateActivePage(deg) {
+      if (!scannedPages[activePageIndex]) return;
+      scannedPages[activePageIndex].rotation = (scannedPages[activePageIndex].rotation + deg + 360) % 360;
+      recalculatePreviewAndSize();
+    }
+
+    // Renders a given page onto a target canvas with the active document enhancement filter & max dimension
+    function renderEnhancedPageToCanvas(pageObj, targetCanvas, maxDim) {
+      const srcImg = pageObj.imgElement;
+      const rot = pageObj.rotation || 0;
+
+      const rawW = (rot === 90 || rot === 270) ? srcImg.naturalHeight || srcImg.height : srcImg.naturalWidth || srcImg.width;
+      const rawH = (rot === 90 || rot === 270) ? srcImg.naturalWidth || srcImg.width : srcImg.naturalHeight || srcImg.height;
+
+      const scale = Math.min(1, maxDim / Math.max(rawW, rawH));
+      const outW = Math.max(1, Math.round(rawW * scale));
+      const outH = Math.max(1, Math.round(rawH * scale));
+
+      targetCanvas.width = outW;
+      targetCanvas.height = outH;
+      const ctx = targetCanvas.getContext("2d");
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, outW, outH);
+
+      ctx.save();
+      ctx.translate(outW / 2, outH / 2);
+      ctx.rotate((rot * Math.PI) / 180);
+      if (rot === 90 || rot === 270) {
+        ctx.drawImage(srcImg, -outH / 2, -outW / 2, outH, outW);
+      } else {
+        ctx.drawImage(srcImg, -outW / 2, -outH / 2, outW, outH);
+      }
+      ctx.restore();
+
+      // Apply pixel-level document clarity enhancement
+      const preset = FILTER_PRESETS[currentFilterMode] || FILTER_PRESETS.magic;
+      const brightness = preset.brightness;
+      const contrastFactor = preset.contrast;
+
+      const imgData = ctx.getImageData(0, 0, outW, outH);
+      const d = imgData.data;
+
+      for (let i = 0; i < d.length; i += 4) {
+        let r = d[i] * brightness;
+        let g = d[i + 1] * brightness;
+        let b = d[i + 2] * brightness;
+
+        // Contrast around midpoint 128
+        r = (r - 128) * contrastFactor + 128;
+        g = (g - 128) * contrastFactor + 128;
+        b = (b - 128) * contrastFactor + 128;
+
+        if (currentFilterMode === "gray" || currentFilterMode === "bw") {
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          if (currentFilterMode === "bw") {
+            // Soft S-curve threshold so text is jet-black, background is clean white, but signatures stay anti-aliased
+            const v = lum > 175 ? 255 : lum < 85 ? 0 : ((lum - 85) / 90) * 255;
+            r = g = b = v;
+          } else {
+            r = g = b = lum;
+          }
+        } else if (currentFilterMode === "magic") {
+          // Whiten paper background above 200 luminance to remove camera shadows while keeping blue/black ink crisp
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          if (lum > 195) {
+            const boost = (lum - 195) * 1.3;
+            r += boost;
+            g += boost;
+            b += boost;
+          }
+        }
+
+        d[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+        d[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+        d[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function recalculatePreviewAndSize() {
+      if (scannedPages.length === 0) return;
+      const previewCanvas = document.getElementById("previewCanvas");
+      const maxDim = Number(document.getElementById("maxDimSelect").value) || 2200;
+      const maxKb = Number(document.getElementById("maxKbSelect").value) || 250;
+
+      // Render active page onto visible preview canvas
+      renderEnhancedPageToCanvas(scannedPages[activePageIndex], previewCanvas, maxDim);
+
+      // Estimate compressed size using our smart iterative search on the active preview
+      const result = buildCompressedPdfBlob(maxKb, maxDim);
+      const kb = (result.byteLength / 1024).toFixed(1);
+
+      const badge = document.getElementById("sizeStatusBadge");
+      const txt = document.getElementById("estSizeText");
+      const details = document.getElementById("compressionDetails");
+
+      if (result.byteLength <= maxKb * 1024) {
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5";
+        txt.textContent = `${kb} KB — Verified ≤ ${maxKb} KB`;
+      } else {
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1.5";
+        txt.textContent = `${kb} KB`;
+      }
+
+      details.innerHTML = `Optimized at <strong>${result.usedDim}px</strong> resolution &bull; JPEG Quality: <strong>${Math.round(result.usedQuality * 100)}%</strong> &bull; Final PDF Size: <strong class="text-emerald-300">${kb} KB</strong>`;
+    }
+
+    // -----------------------------------------------------------------------
+    // 6. ITERATIVE PDF SIZE OPTIMIZER (GUARANTEES <= TARGET KB & MAX CLARITY)
+    // -----------------------------------------------------------------------
+    function buildCompressedPdfBlob(targetMaxKb, initialMaxDim) {
+      const { jsPDF } = window.jspdf;
+      const maxBytes = targetMaxKb * 1024;
+
+      // Prefer full resolution; only step down if the page can't reach good quality inside the size budget
+      const dimSteps = [initialMaxDim, 2000, 1800, 1600, 1400, 1200, 1000].filter((d, i, a) => d <= initialMaxDim && a.indexOf(d) === i);
+      const Q_MAX = 0.95, Q_MIN = 0.50, Q_GOOD = 0.68;
+
+      const buildDoc = (renderedPages, q) => {
+        const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        renderedPages.forEach((canvasPage, idx) => {
+          if (idx > 0) doc.addPage("a4", "portrait");
+          const imgDataUrl = canvasPage.toDataURL("image/jpeg", q);
+          const pageW = 210, pageH = 297, margin = 4;
+          const ratio = Math.min((pageW - margin * 2) / canvasPage.width, (pageH - margin * 2) / canvasPage.height);
+          const drawW = canvasPage.width * ratio;
+          const drawH = canvasPage.height * ratio;
+          doc.addImage(imgDataUrl, "JPEG", (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH, undefined, "FAST");
+        });
+        return { doc, byteLength: doc.output("arraybuffer").byteLength, usedQuality: q };
+      };
+
+      let bestFit = null;     // highest-quality result that fits the budget
+      let smallest = null;    // fallback if nothing fits
+
+      for (let di = 0; di < dimSteps.length; di++) {
+        const dim = dimSteps[di];
+        const rendered = scannedPages.map(p => {
+          const c = document.createElement("canvas");
+          renderEnhancedPageToCanvas(p, c, dim);
+          return c;
+        });
+
+        let fit = null;
+        const top = buildDoc(rendered, Q_MAX);
+        if (top.byteLength <= maxBytes) {
+          fit = top;                                   // fits even at maximum quality
+        } else {
+          const low = buildDoc(rendered, Q_MIN);
+          if (low.byteLength > maxBytes) {
+            low.usedDim = dim;
+            if (!smallest || low.byteLength < smallest.byteLength) smallest = low;
+            continue;                                  // too big even at min quality -> lower resolution
+          }
+          fit = low;
+          let lo = Q_MIN, hi = Q_MAX;
+          for (let i = 0; i < 6; i++) {                // binary search: highest quality under the limit
+            const mid = (lo + hi) / 2;
+            const t = buildDoc(rendered, mid);
+            if (t.byteLength <= maxBytes) { fit = t; lo = mid; } else { hi = mid; }
+          }
+        }
+        fit.usedDim = dim;
+        if (!bestFit || fit.usedQuality > bestFit.usedQuality) bestFit = fit;
+        if (fit.usedQuality >= Q_GOOD) break;          // sharp enough at this resolution
+      }
+
+      const chosen = bestFit || smallest;
+      return {
+        doc: chosen.doc,
+        byteLength: chosen.byteLength,
+        usedDim: chosen.usedDim,
+        usedQuality: chosen.usedQuality
+      };
+    }
+
+    function generateAndDownloadPDF() {
+      if (scannedPages.length === 0) {
+        showToast("Please scan or upload a declaration image first!");
+        return;
+      }
+
+      if (scannedPages.every(p => p.isSample) && !confirm("Only the sample form is loaded, not a real scan. Save it anyway?")) return;
+      const maxKb = Number(document.getElementById("maxKbSelect").value) || 250;
+      const maxDim = Number(document.getElementById("maxDimSelect").value) || 2200;
+
+      const result = buildCompressedPdfBlob(maxKb, maxDim);
+      const finalKb = (result.byteLength / 1024).toFixed(1);
+      const pdfBlob = result.doc.output("blob");
+
+      // If linked to a student row, save it to memory
+      if (activeStudentAppNo !== null) {
+        const st = students.find(s => String(s.appNo) === String(activeStudentAppNo));
+        if (st) {
+          st.status = "PDF Ready";
+          st.lastPdfKb = finalKb;
+          st.pdfBlob = pdfBlob;
+          saveToStorage();
+          renderTable();
+          showToast(`Saved scan for ${st.studentName || 'Student'} to memory (${finalKb} KB)`);
+          closeScannerModal();
+          return;
+        }
+      }
+
+      // Standalone mode fallback (if not attached to a student)
+      let filename = (document.getElementById("pdfFilenameInput").value || "Declaration_Form.pdf").trim();
+      if (!filename.toLowerCase().endsWith(".pdf")) filename += ".pdf";
+      result.doc.save(filename);
+      showToast(`Downloaded standalone file ${filename} (${finalKb} KB)`);
+    }
+
+    // -----------------------------------------------------------------------
+    // 7. UTILITY HELPERS
+    // -----------------------------------------------------------------------
+    let toastTimer = null;
+    function showToast(msg) {
+      const box = document.getElementById("toastBox");
+      const txt = document.getElementById("toastText");
+      txt.textContent = msg;
+      box.classList.remove("hidden");
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        box.classList.add("hidden");
+      }, 3600);
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return String(str ?? "").replace(/"/g, "&quot;");
+    }
+  </script>
+  <!-- ===================================================================== -->
+  <!-- PASSWORD CLOUD SYNC v5 (Compact Serializer + >4KB Attachment Reader   -->
+  <!-- + Case-Insensitive & Legacy Password Channel Fallback)                -->
+  <!-- ===================================================================== -->
+  <script>
+    (function () {
+      const STORAGE_PWD_KEY = "uhs_51860_sync_pwd_v1";
+      const CLOUD_SYNC_RELAY = "https://ntfy.sh";
+      let syncPassword = "";
+      let autoPushTimer = null;
+      let syncBusy = false;
+
+      try { syncPassword = localStorage.getItem(STORAGE_PWD_KEY) || ""; } catch (_) {}
+
+      function hasValidPassword() {
+        return syncPassword && syncPassword.trim().length >= 4;
+      }
+
+      function refreshSyncButton() {
+        const lbl = document.getElementById("syncOpenBtnLabel");
+        if (lbl) lbl.textContent = syncPassword ? "Password Synced" : "Set Sync Password";
+      }
+
+      function setSyncMessage(kind, text) {
+        const el = document.getElementById("syncStatusMsg");
+        if (!el) return;
+        el.className = "text-xs font-semibold " + (
+          kind === "syncing" ? "text-indigo-600 animate-pulse" :
+          kind === "success" ? "text-emerald-600" :
+          kind === "error" ? "text-rose-600" : "hidden"
+        );
+        el.textContent = text || "";
+      }
+
+      window.openSyncModal = function () {
+        document.getElementById("syncPasswordInput").value = syncPassword;
+        document.getElementById("syncModal").classList.remove("hidden");
+      };
+      window.closeSyncModal = function () {
+        document.getElementById("syncModal").classList.add("hidden");
+      };
+      window.onSyncPasswordInput = function (val) {
+        syncPassword = val;
+        try { localStorage.setItem(STORAGE_PWD_KEY, syncPassword); } catch (_) {}
+        refreshSyncButton();
+      };
+
+      // Case-Insensitive + Legacy Exact-Case SHA-256 Channel Derivation
+      async function getPasswordHash(password, normalizeCase = false) {
+        const cleanPwd = normalizeCase ? password.trim().toLowerCase() : password.trim();
+        const msgUint8 = new TextEncoder().encode("uhs-51860-salt-v1-" + cleanPwd);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+      }
+
+      // Compact Cloud Sync Serializer (packTransactions / unpackTransactions)
+      // Compresses student records into compact arrays so 60+ records stay well under ntfy.sh's 4KB inline limit
+      function packTransactions(list) {
+        return list.map(s => [
+          String(s.appNo || s.sno || ""),
+          (s.category || "REGULAR").toUpperCase() === "REGULAR" ? "R" : (s.category || "REGULAR").toUpperCase() === "PRIVATE" ? "P" : (s.category || "REGULAR"),
+          String(s.studentName || ""),
+          String(s.fatherFull || s.fatherName || ""),
+          String(s.mother || ""),
+          (s.gender || "MALE").toUpperCase().startsWith("F") ? "F" : "M",
+          String(s.dob !== undefined ? s.dob : "0"),
+          s.status === "PDF Ready" ? 1 : 0,
+          s.lastPdfKb || ""
+        ]);
+      }
+
+      function unpackTransactions(packed) {
+        if (!Array.isArray(packed)) return [];
+        return packed.map((row, idx) => {
+          if (!Array.isArray(row)) {
+            return {
+              appNo: row.appNo || row.sno || String(idx + 1),
+              category: row.category || "REGULAR",
+              studentName: row.studentName || "",
+              fatherFull: row.fatherFull || row.fatherName || "",
+              mother: row.mother || "",
+              gender: row.gender || "MALE",
+              dob: row.dob !== undefined ? row.dob : (row.dobPrefix || "0"),
+              status: row.status || "Pending",
+              lastPdfKb: row.lastPdfKb || null
+            };
+          }
+          const catCode = row[1];
+          const category = catCode === "R" ? "REGULAR" : catCode === "P" ? "PRIVATE" : (catCode || "REGULAR");
+          return {
+            appNo: String(row[0] || (idx + 1)),
+            category: category,
+            studentName: String(row[2] || ""),
+            fatherFull: String(row[3] || ""),
+            mother: String(row[4] || ""),
+            gender: row[5] === "F" ? "FEMALE" : "MALE",
+            dob: String(row[6] !== undefined ? row[6] : "0"),
+            status: row[7] === 1 || row[7] === "1" || row[7] === "PDF Ready" ? "PDF Ready" : "Pending",
+            lastPdfKb: row[8] ? String(row[8]) : null
+          };
+        });
+      }
+
+      window.syncWithPasswordCloud = async function (mode, showAlert) {
+        if (mode === undefined) mode = "push";
+        if (showAlert === undefined) showAlert = true;
+
+        if (!hasValidPassword()) {
+          if (showAlert) setSyncMessage("error", "Please enter a password of at least 4 characters.");
+          return;
+        }
+        if (syncBusy) return;
+        syncBusy = true;
+        if (showAlert) setSyncMessage("syncing", mode === "push" ? "Compressing & uploading student data to cloud..." : "Downloading student data from cloud...");
+
+        try {
+          // Use case-insensitive hash as primary, and exact-case hash as fallback
+          const normKey = await getPasswordHash(syncPassword, true);
+          const exactKey = await getPasswordHash(syncPassword, false);
+          const primaryTopic = "uhs_sync_bin_" + normKey;
+          const legacyTopic = "uhs_sync_bin_" + exactKey;
+
+          if (mode === "push") {
+            const compactPacket = JSON.stringify({
+              u: new Date().toISOString(),
+              p: packTransactions(students)
+            });
+
+            // Push to normalized channel (and legacy exact-case channel if different)
+            const res = await fetch(CLOUD_SYNC_RELAY + "/" + primaryTopic, {
+              method: "POST",
+              headers: { "Title": "UHS 51860 Matric Sync" },
+              body: compactPacket
+            });
+
+            if (primaryTopic !== legacyTopic) {
+              fetch(CLOUD_SYNC_RELAY + "/" + legacyTopic, { method: "POST", body: compactPacket }).catch(() => {});
+            }
+
+            if (!res.ok) throw new Error("Cloud Push Failed (HTTP " + res.status + ")");
+
+            if (showAlert) setSyncMessage("success", "\u2713 Pushed " + students.length + " students to Cloud! Now click \"Pull from Cloud\" on your other device.");
+          } else {
+            // Helper to pull & parse from a given ntfy topic (supports both <4KB inline messages & >4KB attachments)
+            const fetchFromTopic = async (topic) => {
+              const res = await fetch(CLOUD_SYNC_RELAY + "/" + topic + "/json?poll=1&since=all", {
+                method: "GET",
+                cache: "no-store"
+              });
+              if (!res.ok) return null;
+              const rawLines = (await res.text()).trim();
+              if (!rawLines) return null;
+
+              const lines = rawLines.split("\n").filter(Boolean);
+              for (let i = lines.length - 1; i >= 0; i--) {
+                try {
+                  const event = JSON.parse(lines[i]);
+                  if (event.event !== "message") continue;
+
+                  let parsedMsg = null;
+                  // Case A: Standard inline message (<4KB)
+                  if (event.message && event.message.trim().startsWith("{")) {
+                    parsedMsg = JSON.parse(event.message);
+                  }
+                  // Case B: Payload >4KB converted by ntfy.sh into an external attachment
+                  else if (event.attachment && event.attachment.url) {
+                    const attRes = await fetch(event.attachment.url, { cache: "no-store" });
+                    if (attRes.ok) parsedMsg = await attRes.json();
+                  }
+
+                  if (parsedMsg) {
+                    if (Array.isArray(parsedMsg.p)) return unpackTransactions(parsedMsg.p);
+                    if (Array.isArray(parsedMsg.students)) return unpackTransactions(parsedMsg.students);
+                    if (parsedMsg.blobUrl) {
+                      const blobRes = await fetch(parsedMsg.blobUrl, { headers: { "Accept": "application/json" } });
+                      if (blobRes.ok) {
+                        const blobJson = await blobRes.json();
+                        if (blobJson && Array.isArray(blobJson.students)) return unpackTransactions(blobJson.students);
+                      }
+                    }
+                  }
+                } catch (_) {}
+              }
+              return null;
+            };
+
+            let pulled = await fetchFromTopic(primaryTopic);
+            if (!pulled && primaryTopic !== legacyTopic) {
+              pulled = await fetchFromTopic(legacyTopic);
+            }
+
+            if (!Array.isArray(pulled)) {
+              throw new Error("No cloud data found for this password yet. Click 'Save & Push Sync' on your primary device first!");
+            }
+
+            // Keep locally generated PDFs for students that still exist after the pull
+            const localBlobs = {};
+            students.forEach(s => { if (s.pdfBlob) localBlobs[s.appNo] = s.pdfBlob; });
+
+            students = pulled.map(rec => {
+              if (localBlobs[rec.appNo]) rec.pdfBlob = localBlobs[rec.appNo];
+              return rec;
+            });
+
+            pulling = true;
+            try { saveToStorage(); } finally { pulling = false; }
+            renderTable();
+
+            if (showAlert) setSyncMessage("success", "\u2713 Pulled " + students.length + " students from Cloud!");
+            showToast("Pulled " + students.length + " students from Cloud.");
+          }
+        } catch (err) {
+          if (showAlert) setSyncMessage("error", err.message);
+          else console.warn("Auto-sync failed:", err);
+        } finally {
+          syncBusy = false;
+        }
+      };
+
+      // Auto-push after every save, debounced
+      let pulling = false;
+      const originalSave = saveToStorage;
+      saveToStorage = function () {
+        originalSave.apply(this, arguments);
+        if (pulling || !hasValidPassword()) return;
+        clearTimeout(autoPushTimer);
+        autoPushTimer = setTimeout(() => window.syncWithPasswordCloud("push", false), 1500);
+      };
+
+      refreshSyncButton();
+    })();
+  </script>
+  <!-- Built-in icons: replaces Font Awesome <i> tags with inline SVG (no font / internet needed). Icon shapes: Font Awesome Free, CC BY 4.0 -->
+  <script>
+  (function () {
+    var ICONS = {"solid:camera":[512,512,"M149.1 64.8L138.7 96 64 96C28.7 96 0 124.7 0 160L0 416c0 35.3 28.7 64 64 64l384 0c35.3 0 64-28.7 64-64l0-256c0-35.3-28.7-64-64-64l-74.7 0-10.4-31.2C356.4 45.2 338.1 32 317.4 32L194.6 32c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"],"solid:xmark":[384,512,"M55.1 73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L147.2 256 9.9 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192.5 301.3 329.9 438.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.8 256 375.1 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192.5 210.7 55.1 73.4z"],"solid:rotate-right":[512,512,"M488 192l-144 0c-9.7 0-18.5-5.8-22.2-14.8s-1.7-19.3 5.2-26.2l46.7-46.7c-75.3-58.6-184.3-53.3-253.5 15.9-75 75-75 196.5 0 271.5s196.5 75 271.5 0c8.2-8.2 15.5-16.9 21.9-26.1 10.1-14.5 30.1-18 44.6-7.9s18 30.1 7.9 44.6c-8.5 12.2-18.2 23.8-29.1 34.7-100 100-262.1 100-362 0S-25 175 75 75c94.3-94.3 243.7-99.6 344.3-16.2L471 7c6.9-6.9 17.2-8.9 26.2-5.2S512 14.3 512 24l0 144c0 13.3-10.7 24-24 24z"],"solid:rotate-left":[512,512,"M24 192l144 0c9.7 0 18.5-5.8 22.2-14.8s1.7-19.3-5.2-26.2l-46.7-46.7c75.3-58.6 184.3-53.3 253.5 15.9 75 75 75 196.5 0 271.5s-196.5 75-271.5 0c-10.2-10.2-19-21.3-26.4-33-9.5-14.9-29.3-19.3-44.2-9.8s-19.3 29.3-9.8 44.2C49.7 408.7 61.4 423.5 75 437 175 537 337 537 437 437S537 175 437 75C342.8-19.3 193.3-24.7 92.7 58.8L41 7C34.1 .2 23.8-1.9 14.8 1.8S0 14.3 0 24L0 168c0 13.3 10.7 24 24 24z"],"solid:circle-check":[512,512,"M256 512a256 256 0 1 1 0-512 256 256 0 1 1 0 512zM374 145.7c-10.7-7.8-25.7-5.4-33.5 5.3L221.1 315.2 169 263.1c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l72 72c5 5 11.8 7.5 18.8 7s13.4-4.1 17.5-9.8L379.3 179.2c7.8-10.7 5.4-25.7-5.3-33.5z"],"solid:wand-magic-sparkles":[576,512,"M263.4-27L278.2 9.8 315 24.6c3 1.2 5 4.2 5 7.4s-2 6.2-5 7.4L278.2 54.2 263.4 91c-1.2 3-4.2 5-7.4 5s-6.2-2-7.4-5L233.8 54.2 197 39.4c-3-1.2-5-4.2-5-7.4s2-6.2 5-7.4L233.8 9.8 248.6-27c1.2-3 4.2-5 7.4-5s6.2 2 7.4 5zM110.7 41.7l21.5 50.1 50.1 21.5c5.9 2.5 9.7 8.3 9.7 14.7s-3.8 12.2-9.7 14.7l-50.1 21.5-21.5 50.1c-2.5 5.9-8.3 9.7-14.7 9.7s-12.2-3.8-14.7-9.7L59.8 164.2 9.7 142.7C3.8 140.2 0 134.4 0 128s3.8-12.2 9.7-14.7L59.8 91.8 81.3 41.7C83.8 35.8 89.6 32 96 32s12.2 3.8 14.7 9.7zM464 304c6.4 0 12.2 3.8 14.7 9.7l21.5 50.1 50.1 21.5c5.9 2.5 9.7 8.3 9.7 14.7s-3.8 12.2-9.7 14.7l-50.1 21.5-21.5 50.1c-2.5 5.9-8.3 9.7-14.7 9.7s-12.2-3.8-14.7-9.7l-21.5-50.1-50.1-21.5c-5.9-2.5-9.7-8.3-9.7-14.7s3.8-12.2 9.7-14.7l50.1-21.5 21.5-50.1c2.5-5.9 8.3-9.7 14.7-9.7zM460 0c11 0 21.6 4.4 29.5 12.2l42.3 42.3C539.6 62.4 544 73 544 84s-4.4 21.6-12.2 29.5l-88.2 88.2-101.3-101.3 88.2-88.2C438.4 4.4 449 0 460 0zM44.2 398.5L308.4 134.3 409.7 235.6 145.5 499.8C137.6 507.6 127 512 116 512s-21.6-4.4-29.5-12.2L44.2 457.5C36.4 449.6 32 439 32 428s4.4-21.6 12.2-29.5z"],"solid:triangle-exclamation":[512,512,"M256 0c14.7 0 28.2 8.1 35.2 21l216 400c6.7 12.4 6.4 27.4-.8 39.5S486.1 480 472 480L40 480c-14.1 0-27.2-7.4-34.4-19.5s-7.5-27.1-.8-39.5l216-400c7-12.9 20.5-21 35.2-21zm0 352a32 32 0 1 0 0 64 32 32 0 1 0 0-64zm0-192c-18.2 0-32.7 15.5-31.4 33.7l7.4 104c.9 12.5 11.4 22.3 23.9 22.3 12.6 0 23-9.7 23.9-22.3l7.4-104c1.3-18.2-13.1-33.7-31.4-33.7z"],"solid:trash-can":[448,512,"M136.7 5.9C141.1-7.2 153.3-16 167.1-16l113.9 0c13.8 0 26 8.8 30.4 21.9L320 32 416 32c17.7 0 32 14.3 32 32s-14.3 32-32 32L32 96C14.3 96 0 81.7 0 64S14.3 32 32 32l96 0 8.7-26.1zM32 144l384 0 0 304c0 35.3-28.7 64-64 64L96 512c-35.3 0-64-28.7-64-64l0-304zm88 64c-13.3 0-24 10.7-24 24l0 192c0 13.3 10.7 24 24 24s24-10.7 24-24l0-192c0-13.3-10.7-24-24-24zm104 0c-13.3 0-24 10.7-24 24l0 192c0 13.3 10.7 24 24 24s24-10.7 24-24l0-192c0-13.3-10.7-24-24-24zm104 0c-13.3 0-24 10.7-24 24l0 192c0 13.3 10.7 24 24 24s24-10.7 24-24l0-192c0-13.3-10.7-24-24-24z"],"solid:plus":[448,512,"M256 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 160-160 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l160 0 0 160c0 17.7 14.3 32 32 32s32-14.3 32-32l0-160 160 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-160 0 0-160z"],"solid:file-csv":[576,512,"M96 0C60.7 0 32 28.7 32 64l0 384c0 35.3 28.7 64 64 64l80 0 0-112c0-35.3 28.7-64 64-64l176 0 0-165.5c0-17-6.7-33.3-18.7-45.3L290.7 18.7C278.7 6.7 262.5 0 245.5 0L96 0zM357.5 176L264 176c-13.3 0-24-10.7-24-24L240 58.5 357.5 176zM264 380c-24.3 0-44 19.7-44 44l0 80c0 24.3 19.7 44 44 44l16 0c24.3 0 44-19.7 44-44l0-8c0-11-9-20-20-20s-20 9-20 20l0 8c0 2.2-1.8 4-4 4l-16 0c-2.2 0-4-1.8-4-4l0-80c0-2.2 1.8-4 4-4l16 0c2.2 0 4 1.8 4 4l0 8c0 11 9 20 20 20s20-9 20-20l0-8c0-24.3-19.7-44-44-44l-16 0zm136 0c-28.7 0-52 23.3-52 52s23.3 52 52 52c6.6 0 12 5.4 12 12s-5.4 12-12 12l-32 0c-11 0-20 9-20 20s9 20 20 20l32 0c28.7 0 52-23.3 52-52s-23.3-52-52-52c-6.6 0-12-5.4-12-12s5.4-12 12-12l24 0c11 0 20-9 20-20s-9-20-20-20l-24 0zm96 0c-11 0-20 9-20 20l0 31.6c0 35.5 10.5 70.3 30.2 99.8l5.1 7.7c3.7 5.6 10 8.9 16.6 8.9s12.9-3.3 16.6-8.9l5.1-7.7c19.7-29.6 30.2-64.3 30.2-99.8l0-31.6c0-11-9-20-20-20s-20 9-20 20l0 31.6c0 19.6-4.1 38.9-12 56.7-7.9-17.8-12-37.1-12-56.7l0-31.6c0-11-9-20-20-20z"],"solid:clock":[512,512,"M256 0a256 256 0 1 1 0 512 256 256 0 1 1 0-512zM232 120l0 136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2 280 120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"],"solid:check":[448,512,"M434.8 70.1c14.3 10.4 17.5 30.4 7.1 44.7l-256 352c-5.5 7.6-14 12.3-23.4 13.1s-18.5-2.7-25.1-9.3l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l101.5 101.5 234-321.7c10.4-14.3 30.4-17.5 44.7-7.1z"],"solid:weight-hanging":[512,512,"M224 96a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm122.5 32c3.5-10 5.5-20.8 5.5-32 0-53-43-96-96-96s-96 43-96 96c0 11.2 1.9 22 5.5 32l-21.8 0c-28.3 0-53.2 18.5-61.3 45.6L2.4 440.2C.8 445.4 0 450.8 0 456.2 0 487 25 512 55.8 512l400.4 0c30.8 0 55.8-25 55.8-55.8 0-5.4-.8-10.8-2.4-16l-80-266.5c-8.1-27.1-33-45.6-61.3-45.6l-21.8 0z"],"solid:venus-mars":[640,512,"M480-64c-17.7 0-32 14.3-32 32S462.3 0 480 0L530.7 0 474 56.7c-26.3-15.7-57.1-24.7-90-24.7-35.4 0-68.4 10.5-96 28.5-27.6-18-60.6-28.5-96-28.5-97.2 0-176 78.8-176 176 0 86.3 62.1 158.1 144 173.1l0 34.9-32 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l32 0 0 32c0 17.7 14.3 32 32 32s32-14.3 32-32l0-32 32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-32 0 0-34.9c23.3-4.3 44.9-13.1 64-25.6 27.6 18 60.6 28.5 96 28.5 97.2 0 176-78.8 176-176 0-41.1-14.1-79-37.8-109L576 45.3 576 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-128c0-17.7-14.3-32-32-32L480-64zM336 309.2c20.2-28.6 32-63.5 32-101.2s-11.8-72.6-32-101.2c14.6-6.9 30.8-10.8 48-10.8 61.9 0 112 50.1 112 112S445.9 320 384 320c-17.2 0-33.5-3.9-48-10.8zM288 150.3c10.2 16.9 16 36.6 16 57.7s-5.8 40.9-16 57.7c-10.2-16.9-16-36.6-16-57.7s5.8-40.9 16-57.7zm-48-43.5c-20.2 28.6-32 63.5-32 101.2s11.8 72.6 32 101.2c-14.5 6.9-30.8 10.8-48 10.8-61.9 0-112-50.1-112-112S130.1 96 192 96c17.2 0 33.5 3.9 48 10.8z"],"solid:users":[640,512,"M320 16a104 104 0 1 1 0 208 104 104 0 1 1 0-208zM96 88a72 72 0 1 1 0 144 72 72 0 1 1 0-144zM0 416c0-70.7 57.3-128 128-128 12.8 0 25.2 1.9 36.9 5.4-32.9 36.8-52.9 85.4-52.9 138.6l0 16c0 11.4 2.4 22.2 6.7 32L32 480c-17.7 0-32-14.3-32-32l0-32zm521.3 64c4.3-9.8 6.7-20.6 6.7-32l0-16c0-53.2-20-101.8-52.9-138.6 11.7-3.5 24.1-5.4 36.9-5.4 70.7 0 128 57.3 128 128l0 32c0 17.7-14.3 32-32 32l-86.7 0zM472 160a72 72 0 1 1 144 0 72 72 0 1 1 -144 0zM160 432c0-88.4 71.6-160 160-160s160 71.6 160 160l0 16c0 17.7-14.3 32-32 32l-256 0c-17.7 0-32-14.3-32-32l0-16z"],"solid:palette":[512,512,"M512 256c0 .9 0 1.8 0 2.7-.4 36.5-33.6 61.3-70.1 61.3L344 320c-26.5 0-48 21.5-48 48 0 3.4 .4 6.7 1 9.9 2.1 10.2 6.5 20 10.8 29.9 6.1 13.8 12.1 27.5 12.1 42 0 31.8-21.6 60.7-53.4 62-3.5 .1-7 .2-10.6 .2-141.4 0-256-114.6-256-256S114.6 0 256 0 512 114.6 512 256zM128 288a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm0-96a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM288 96a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 96a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"],"solid:magnifying-glass":[512,512,"M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376C296.3 401.1 253.9 416 208 416 93.1 416 0 322.9 0 208S93.1 0 208 0 416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"],"solid:lock":[384,512,"M128 96l0 64 128 0 0-64c0-35.3-28.7-64-64-64s-64 28.7-64 64zM64 160l0-64C64 25.3 121.3-32 192-32S320 25.3 320 96l0 64c35.3 0 64 28.7 64 64l0 224c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 224c0-35.3 28.7-64 64-64z"],"solid:image":[448,512,"M64 32C28.7 32 0 60.7 0 96L0 416c0 35.3 28.7 64 64 64l320 0c35.3 0 64-28.7 64-64l0-320c0-35.3-28.7-64-64-64L64 32zm64 80a48 48 0 1 1 0 96 48 48 0 1 1 0-96zM272 224c8.4 0 16.1 4.4 20.5 11.5l88 144c4.5 7.4 4.7 16.7 .5 24.3S368.7 416 360 416L88 416c-8.9 0-17.2-5-21.3-12.9s-3.5-17.5 1.6-24.8l56-80c4.5-6.4 11.8-10.2 19.7-10.2s15.2 3.8 19.7 10.2l26.4 37.8 61.4-100.5c4.4-7.1 12.1-11.5 20.5-11.5z"],"solid:file-zipper":[384,512,"M0 64C0 28.7 28.7 0 64 0L213.5 0c17 0 33.3 6.7 45.3 18.7L365.3 125.3c12 12 18.7 28.3 18.7 45.3L384 448c0 35.3-28.7 64-64 64L64 512c-35.3 0-64-28.7-64-64L0 64zm208-5.5l0 93.5c0 13.3 10.7 24 24 24L325.5 176 208 58.5zM64 72c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24s-10.7-24-24-24L88 48C74.7 48 64 58.7 64 72zm0 96c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24s-10.7-24-24-24l-48 0c-13.3 0-24 10.7-24 24zm64 72l-32 0c-17.7 0-32 14.3-32 32l0 48c0 26.5 21.5 48 48 48s48-21.5 48-48l0-48c0-17.7-14.3-32-32-32zm-16 64a16 16 0 1 1 0 32 16 16 0 1 1 0-32z"],"solid:file-shield":[576,512,"M96 0C60.7 0 32 28.7 32 64l0 384c0 35.3 28.7 64 64 64l201.2 0C261 469.4 240 414.5 240 356.4l0-31.1c0-34.4 22-65 54.7-75.9l112-37.3c3.1-1 6.2-1.8 9.3-2.5l0-39.1c0-17-6.7-33.3-18.7-45.3L290.7 18.7C278.7 6.7 262.5 0 245.5 0L96 0zM357.5 176L264 176c-13.3 0-24-10.7-24-24L240 58.5 357.5 176zm87.8 312.5l-13.3 6.3 0-188.1 96 32 0 19.6c0 55.8-32.2 106.5-82.7 130.3zM421.9 259.5l-112 37.3c-13.1 4.4-21.9 16.6-21.9 30.4l0 31.1c0 74.4 43 142.1 110.2 173.7l18.5 8.7c4.8 2.2 10 3.4 15.2 3.4s10.5-1.2 15.2-3.4l18.5-8.7C533 500.3 576 432.6 576 358.2l0-31.1c0-13.8-8.8-26-21.9-30.4l-112-37.3c-6.6-2.2-13.7-2.2-20.2 0z"],"solid:file-pdf":[576,512,"M96 0C60.7 0 32 28.7 32 64l0 384c0 35.3 28.7 64 64 64l80 0 0-112c0-35.3 28.7-64 64-64l176 0 0-165.5c0-17-6.7-33.3-18.7-45.3L290.7 18.7C278.7 6.7 262.5 0 245.5 0L96 0zM357.5 176L264 176c-13.3 0-24-10.7-24-24L240 58.5 357.5 176zM240 380c-11 0-20 9-20 20l0 128c0 11 9 20 20 20s20-9 20-20l0-28 12 0c33.1 0 60-26.9 60-60s-26.9-60-60-60l-32 0zm32 80l-12 0 0-40 12 0c11 0 20 9 20 20s-9 20-20 20zm96-80c-11 0-20 9-20 20l0 128c0 11 9 20 20 20l32 0c28.7 0 52-23.3 52-52l0-64c0-28.7-23.3-52-52-52l-32 0zm20 128l0-88 12 0c6.6 0 12 5.4 12 12l0 64c0 6.6-5.4 12-12 12l-12 0zm88-108l0 128c0 11 9 20 20 20s20-9 20-20l0-44 28 0c11 0 20-9 20-20s-9-20-20-20l-28 0 0-24 28 0c11 0 20-9 20-20s-9-20-20-20l-48 0c-11 0-20 9-20 20z"],"solid:file-circle-check":[576,512,"M96 0C60.7 0 32 28.7 32 64l0 384c0 35.3 28.7 64 64 64l180 0c-22.7-31.5-36-70.2-36-112 0-100.6 77.4-183.2 176-191.3l0-38.1c0-17-6.7-33.3-18.7-45.3L290.7 18.7C278.7 6.7 262.5 0 245.5 0L96 0zM357.5 176L264 176c-13.3 0-24-10.7-24-24L240 58.5 357.5 176zM576 400a144 144 0 1 0 -288 0 144 144 0 1 0 288 0zm-86.6-60.9c7.1 5.2 8.7 15.2 3.5 22.3l-64 88c-2.8 3.8-7 6.2-11.7 6.5s-9.3-1.3-12.6-4.6l-40-40c-6.2-6.2-6.2-16.4 0-22.6s16.4-6.2 22.6 0l26.8 26.8 53-72.9c5.2-7.1 15.2-8.7 22.4-3.5z"],"solid:expand":[448,512,"M32 32C14.3 32 0 46.3 0 64l0 96c0 17.7 14.3 32 32 32s32-14.3 32-32l0-64 64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 32zM64 352c0-17.7-14.3-32-32-32S0 334.3 0 352l0 96c0 17.7 14.3 32 32 32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0 0-64zM320 32c-17.7 0-32 14.3-32 32s14.3 32 32 32l64 0 0 64c0 17.7 14.3 32 32 32s32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-96 0zM448 352c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 64-64 0c-17.7 0-32 14.3-32 32s14.3 32 32 32l96 0c17.7 0 32-14.3 32-32l0-96z"],"solid:droplet-slash":[576,512,"M41-24.9c-9.4-9.4-24.6-9.4-33.9 0S-2.3-.3 7 9.1l528 528c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9L463.6 397.8c10.5-23.8 16.4-50.1 16.4-77.8 0-91.2-130.2-274.1-166.6-323.5-5.9-8-15.2-12.5-25.2-12.5l-.4 0c-10 0-19.3 4.5-25.2 12.5-15.6 21.2-48.5 66.9-80.9 119.4L41-24.9zm92 227.7c-21.6 43.8-37 85.9-37 117.2 0 106 86 192 192 192 43.4 0 83.4-14.4 115.5-38.6L133 202.8z"],"solid:crop-simple":[512,512,"M128 32c0-17.7-14.3-32-32-32S64 14.3 64 32l0 32-32 0C14.3 64 0 78.3 0 96s14.3 32 32 32l32 0 0 256c0 35.3 28.7 64 64 64l208 0 0-64-208 0 0-352zM384 480c0 17.7 14.3 32 32 32s32-14.3 32-32l0-32 32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-32 0 0-256c0-35.3-28.7-64-64-64l-208 0 0 64 208 0 0 352z"],"solid:circle-info":[512,512,"M256 512a256 256 0 1 0 0-512 256 256 0 1 0 0 512zM224 160a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm-8 64l48 0c13.3 0 24 10.7 24 24l0 88 8 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-80 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l24 0 0-64-24 0c-13.3 0-24-10.7-24-24s10.7-24 24-24z"],"solid:circle-half-stroke":[512,512,"M448 256c0-106-86-192-192-192l0 384c106 0 192-86 192-192zM0 256a256 256 0 1 1 512 0 256 256 0 1 1 -512 0z"],"solid:check-double":[384,512,"M249.9 66.8c10.4-14.3 7.2-34.3-7.1-44.7s-34.3-7.2-44.7 7.1l-106 145.7-37.5-37.5c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l64 64c6.6 6.6 15.8 10 25.1 9.3s17.9-5.5 23.4-13.1l128-176zm128 136c10.4-14.3 7.2-34.3-7.1-44.7s-34.3-7.2-44.7 7.1l-170 233.7-69.5-69.5c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l96 96c6.6 6.6 15.8 10 25.1 9.3s17.9-5.5 23.4-13.1l192-264z"],"regular:clock":[512,512,"M464 256a208 208 0 1 1 -416 0 208 208 0 1 1 416 0zM0 256a256 256 0 1 0 512 0 256 256 0 1 0 -512 0zM232 120l0 136c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2 280 120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"],"solid:vector-square":[512,512,"M64 0c23.7 0 44.4 12.9 55.4 32l273.1 0c11.1-19.1 31.7-32 55.4-32 35.3 0 64 28.7 64 64 0 34-26.5 61.8-60 63.9l-2.1 2.9-71.5 99.1c3.6 8 5.6 16.9 5.6 26.2s-2 18.2-5.6 26.2l2.2 3.1 69.3 96 2.1 2.9c33.5 2.1 60 29.9 60 63.9 0 35.3-28.7 64-64 64-23.7 0-44.4-12.9-55.4-32l-273.1 0c-11.1 19.1-31.7 32-55.4 32-35.3 0-64-28.7-64-64 0-23.7 12.9-44.4 32-55.4l0-273.1C12.9 108.4 0 87.7 0 64 0 28.7 28.7 0 64 0zM394.2 413.4l-65.5-90.6-2.2-3.1c-2.1 .2-4.3 .3-6.5 .3-35.3 0-64-28.7-64-64s28.7-64 64-64c2.2 0 4.4 .1 6.5 .3l67.7-93.7c-.6-.9-1.1-1.7-1.6-2.6L119.4 96c-5.6 9.7-13.7 17.8-23.4 23.4l0 273.1c9.7 5.6 17.8 13.7 23.4 23.4l273.1 0c.5-.9 1.1-1.8 1.6-2.6z"]};
+    var SVGNS = "http://www.w3.org/2000/svg";
+    var SKIP = { "fa-solid": 1, "fa-regular": 1, "fa-brands": 1, "fa-fw": 1 };
+
+    function convert(el) {
+      if (!el || el.nodeType !== 1 || el.tagName !== "I") return;
+      var classes = (el.getAttribute("class") || "").split(/\s+/).filter(Boolean);
+      var style = classes.indexOf("fa-regular") !== -1 ? "regular" : "solid";
+      var name = null, keep = [];
+      classes.forEach(function (c) {
+        if (SKIP[c]) return;
+        if (c.indexOf("fa-") === 0 && ICONS[style + ":" + c.slice(3)]) { name = c.slice(3); return; }
+        if (c.indexOf("fa-") === 0) return;
+        keep.push(c);
+      });
+      if (!name) return;
+      var d = ICONS[style + ":" + name];
+      var svg = document.createElementNS(SVGNS, "svg");
+      svg.setAttribute("viewBox", "0 0 " + d[0] + " " + d[1]);
+      svg.setAttribute("width", "1em");
+      svg.setAttribute("height", "1em");
+      svg.setAttribute("fill", "currentColor");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("class", keep.join(" "));
+      svg.style.display = "inline-block";
+      svg.style.verticalAlign = "-0.125em";
+      svg.style.flexShrink = "0";
+      var path = document.createElementNS(SVGNS, "path");
+      path.setAttribute("d", d[2]);
+      svg.appendChild(path);
+      el.parentNode.replaceChild(svg, el);
+    }
+
+    function scan(root) {
+      if (!root || root.nodeType !== 1) return;
+      if (root.tagName === "I") { convert(root); return; }
+      var list = root.querySelectorAll('i[class*="fa-"]');
+      for (var i = 0; i < list.length; i++) convert(list[i]);
+    }
+
+    function start() {
+      scan(document.body);
+      new MutationObserver(function (muts) {
+        muts.forEach(function (m) { m.addedNodes.forEach(scan); });
+      }).observe(document.body, { childList: true, subtree: true });
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+  })();
+  </script>
+</body>
+</html>
