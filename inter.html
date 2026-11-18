@@ -168,7 +168,7 @@
     <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
         <!-- Search Box -->
-        <div class="lg:col-span-9 relative">
+        <div class="lg:col-span-6 relative">
           <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 text-sm"></i>
           <input
             type="text"
@@ -177,6 +177,17 @@
             placeholder="Search by Student, Father, Mother, DOB or Sl. No..."
             class="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 outline-none"
           />
+        </div>
+
+        <!-- Faculty Filter -->
+        <div class="lg:col-span-3">
+          <select id="facultyFilter" onchange="renderTable()" class="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-300 bg-white focus:border-indigo-600 outline-none">
+            <option value="ALL">Faculty: All</option>
+            <option value="Arts">Arts</option>
+            <option value="Commerce">Commerce</option>
+            <option value="Science">Science</option>
+            <option value="NONE">Not Selected</option>
+          </select>
         </div>
 
         <!-- Status Filter -->
@@ -201,6 +212,7 @@
               <th class="py-3.5 px-3 font-semibold min-w-[180px]">Father Name</th>
               <th class="py-3.5 px-3 font-semibold min-w-[160px]">Mother Name</th>
               <th class="py-3.5 px-3 font-semibold text-center min-w-[110px]" title="Date of Birth (DOB)">DOB</th>
+              <th class="py-3.5 px-3 font-semibold text-center min-w-[130px]">Faculty</th>
               <th class="py-3.5 px-3 font-semibold text-center">Status</th>
               <th class="py-3.5 px-4 font-semibold text-right min-w-[180px]">Scan &amp; PDF Action</th>
             </tr>
@@ -443,21 +455,31 @@
   </footer>
 
   <!-- ===================================================================== -->
-  <!-- MODAL: PASSWORD CLOUD SYNC                                             -->
+  <!-- MODAL: CLOUD SYNC (Supabase)                                           -->
   <!-- ===================================================================== -->
   <div id="syncModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[92vh] overflow-y-auto p-6 space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">Live Password Cloud Sync</h3>
+        <h3 class="text-base font-bold text-slate-900">Cloud Sync (works anywhere)</h3>
         <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&#10005;</button>
       </div>
       <p class="text-xs text-slate-600 leading-relaxed">
-        1. Enter your secret password on your <b>PC / Main Phone</b> and click <b>"Save &amp; Push Sync"</b>.<br/>
-        2. Open your <b>Other Device</b>, enter the <b>exact same password</b>, and click <b>"Pull from Cloud"</b>.
+        Syncs the student list <b>and generated PDFs</b> through your own free Supabase project, from any device with internet.
+        Enter the <b>same three values on every device</b>, push on one, pull on the other.
       </p>
       <div>
+        <label class="text-xs font-semibold text-slate-700">Supabase Project URL</label>
+        <input id="syncUrlInput" type="text" placeholder="https://xxxxxxxx.supabase.co" oninput="onSyncFieldInput('url', this.value)"
+          class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-700">Supabase Anon / Publishable Key</label>
+        <input id="syncAnonInput" type="text" placeholder="eyJ... or sb_publishable_..." oninput="onSyncFieldInput('anon', this.value)"
+          class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
+      </div>
+      <div>
         <label class="text-xs font-semibold text-slate-700">Secret Sync Password</label>
-        <input id="syncPasswordInput" type="text" placeholder="e.g. Inter31386Sync" oninput="onSyncPasswordInput(this.value)"
+        <input id="syncPasswordInput" type="text" placeholder="a long password only you know" oninput="onSyncFieldInput('pwd', this.value)"
           class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
       </div>
       <p id="syncStatusMsg" class="text-xs font-semibold hidden"></p>
@@ -483,6 +505,13 @@
     const STORAGE_KEY = "inter_31386_students_v1";
     const DEFAULT_STUDENTS = [{"appNo": "1", "studentName": "ABHISHEK KUMAR", "fatherFull": "VINOD KUMAR SAH", "mother": "SUNITA SAH", "dob": "21-08-2011", "status": "Pending", "lastPdfKb": null}, {"appNo": "2", "studentName": "ABHISHEK KUMAR", "fatherFull": "RAJU RAY", "mother": "SANDHYA DEVI", "dob": "01-01-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "3", "studentName": "ADITYA KUMAR", "fatherFull": "VINOD BHAGAT", "mother": "KANTI DEVI", "dob": "23-02-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "4", "studentName": "AJIT KUMAR", "fatherFull": "BIRENDRA KUMAR SAHNI", "mother": "RAJKUMARI DEVI", "dob": "02-05-2004", "status": "Pending", "lastPdfKb": null}, {"appNo": "5", "studentName": "AMARJEET KUMAR", "fatherFull": "SHAILESH PASWAN", "mother": "ANITA DEVI", "dob": "23-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "6", "studentName": "ANAJALI KUMARI", "fatherFull": "JANARDAN SHARMA", "mother": "RUBI DEVI", "dob": "22-07-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "7", "studentName": "ANAMIKA KUMARI", "fatherFull": "KESHAV OJHA", "mother": "PUSHPA DEVI", "dob": "12-04-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "8", "studentName": "ANISHA KUMARI", "fatherFull": "RAMPARVESH RAY", "mother": "USHA DEVI", "dob": "19-10-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "9", "studentName": "ANJALI KUMARI", "fatherFull": "RAMAN MAHTO", "mother": "SHAIL DEVI", "dob": "01-01-2007", "status": "Pending", "lastPdfKb": null}, {"appNo": "10", "studentName": "ANKITA KUMARI", "fatherFull": "RAJESH PATEL", "mother": "REKHA DEVI", "dob": "24-02-2011", "status": "Pending", "lastPdfKb": null}, {"appNo": "11", "studentName": "ARADHANA KUMARI", "fatherFull": "SANJEET KUMAR", "mother": "PRAMILA DEVI", "dob": "11-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "12", "studentName": "ARCHANA KUMARI", "fatherFull": "AJAY MAHTO", "mother": "PRAMILA DEVI", "dob": "12-03-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "13", "studentName": "ARJUN KUMAR", "fatherFull": "DHARMENDRA SAH", "mother": "RENU DEVI", "dob": "29-12-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "14", "studentName": "AYUSH KUMAR", "fatherFull": "RAGHUNANDAN BHAGAT", "mother": "SARITA DEVI", "dob": "06-08-2011", "status": "Pending", "lastPdfKb": null}, {"appNo": "15", "studentName": "BIKKI KUMAR", "fatherFull": "DASHRATH SAH", "mother": "MIRA DEVI", "dob": "01-01-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "16", "studentName": "BRAJESH KUMAR", "fatherFull": "LAKHINDRA RAY", "mother": "KALAWATI DEVI", "dob": "20-07-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "17", "studentName": "CHHOTI KUMARI", "fatherFull": "SANTOSH KUMAR PATEL", "mother": "NIRMALA DEVI", "dob": "18-08-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "18", "studentName": "DANISH RAJA", "fatherFull": "MD SALIM", "mother": "SHABNAM KHATOON", "dob": "01-01-2007", "status": "Pending", "lastPdfKb": null}, {"appNo": "19", "studentName": "DHANJAY KUMAR", "fatherFull": "DINESH MAHTO", "mother": "SUNITA DEVI", "dob": "05-04-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "20", "studentName": "DHEERAJ KUMAR", "fatherFull": "PANCHHILAL RAY", "mother": "REENA DEVI", "dob": "27-07-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "21", "studentName": "DIPIKA KUMARI", "fatherFull": "MANOJ RAM", "mother": "SHANTI DEVI", "dob": "30-11-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "22", "studentName": "GITAANSHU KUMAR", "fatherFull": "MUNNA PATEL", "mother": "RUKAMINI DEVI", "dob": "19-08-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "23", "studentName": "GOLU KUMAR", "fatherFull": "SANDESH PATEL", "mother": "RENU DEVI", "dob": "09-04-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "24", "studentName": "GUDDU KUMAR", "fatherFull": "LAKHINDRA SAH", "mother": "RIMA DEVI", "dob": "20-07-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "25", "studentName": "JULI KUMARI", "fatherFull": "RAUSHAN MAHTO", "mother": "MIRA DEVI", "dob": "20-08-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "26", "studentName": "JYOTI KUMARI", "fatherFull": "MAKESHWAR TIWARI", "mother": "DEVASUNDARI DEVI", "dob": "01-01-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "27", "studentName": "KAMNI KUMARI", "fatherFull": "MANJELAL MAHTO", "mother": "RANJU DEVI", "dob": "14-02-2011", "status": "Pending", "lastPdfKb": null}, {"appNo": "28", "studentName": "KARAN KUMAR", "fatherFull": "MUNTUN SAH", "mother": "PAMMI DEVI", "dob": "01-01-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "29", "studentName": "KHUSHI KUMARI", "fatherFull": "ARVIND SAH", "mother": "RANGITA DEVI", "dob": "16-02-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "30", "studentName": "KHUSHI KUMARI", "fatherFull": "CHANDAN KUMAR SINGH", "mother": "ASHA DEVI", "dob": "02-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "31", "studentName": "KHUSHI KUMARI", "fatherFull": "KAILASH SAH", "mother": "RINA DEVI", "dob": "10-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "32", "studentName": "KOMAL KUMARI", "fatherFull": "PARASHNATH SAH", "mother": "KIRAN DEVI", "dob": "01-01-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "33", "studentName": "KUNDAN KUMAR", "fatherFull": "SAHINDRA RAM", "mother": "SUNAINA DEVI", "dob": "05-02-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "34", "studentName": "MANISH KUMAR", "fatherFull": "BABULAL MAHTO", "mother": "MEENA DEVI", "dob": "18-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "35", "studentName": "MUSKAN KUMARI", "fatherFull": "LALAN RAM", "mother": "PINKI KUMARI", "dob": "13-01-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "36", "studentName": "NISHA KUMARI", "fatherFull": "DINESH SAH", "mother": "BAIJANTI DEVI", "dob": "10-02-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "37", "studentName": "NISHA KUMARI", "fatherFull": "RAGHUNATH SAHNI", "mother": "RITA DEVI", "dob": "12-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "38", "studentName": "NISHA KUMARI", "fatherFull": "RAMA SHANKAR RAM", "mother": "PASPATI DEVI", "dob": "02-04-2007", "status": "Pending", "lastPdfKb": null}, {"appNo": "39", "studentName": "NISHU KUMARI", "fatherFull": "SHIV RAM", "mother": "SANGITA DEVI", "dob": "15-07-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "40", "studentName": "NITU KUMARI", "fatherFull": "NAWAL SAHNI", "mother": "SAVITA DEVI", "dob": "01-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "41", "studentName": "POOJA KUMARI", "fatherFull": "RAJBALAM SAHANI", "mother": "SHAKUNTLA DEVI", "dob": "30-11-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "42", "studentName": "POOJA KUMARI", "fatherFull": "SAHDEV DAS", "mother": "SANGEETA DEVI", "dob": "29-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "43", "studentName": "PRINCE KUMAR", "fatherFull": "VAIDHNATH THAKUR", "mother": "SANGITA DEVI", "dob": "04-01-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "44", "studentName": "PRINCE KUMAR", "fatherFull": "JAYKISHOR SAHNI", "mother": "SANGEETA DEVI", "dob": "05-05-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "45", "studentName": "PRINCE KUMAR", "fatherFull": "HIRAMAN RAY", "mother": "MEENA DEVI", "dob": "21-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "46", "studentName": "PRITI KUMARI", "fatherFull": "NARSINGH SAHNI", "mother": "SHOBHA DEVI", "dob": "01-01-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "47", "studentName": "PRITI KUMARI", "fatherFull": "DILIP MAHTO", "mother": "SANJU DEVI", "dob": "05-04-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "48", "studentName": "PUTUL KUMARI", "fatherFull": "RAMSHREY RAY", "mother": "PRAMILA DEVI", "dob": "23-06-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "49", "studentName": "RAGNI KUMARI", "fatherFull": "SURESH KUMAR SAH", "mother": "SAVITA DEVI", "dob": "13-07-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "50", "studentName": "RANI KUMARI", "fatherFull": "BALIRAM SINGH", "mother": "NIBHA DEVI", "dob": "26-09-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "51", "studentName": "RANJU KUMARI", "fatherFull": "NAVAL MAHTO", "mother": "RITA DEVI", "dob": "30-06-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "52", "studentName": "RAVI RAJ KUMAR", "fatherFull": "NIRANJAN SINGH", "mother": "SARITA DEVI", "dob": "02-10-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "53", "studentName": "ROHIT KUMAR", "fatherFull": "RAKESH MAHTO", "mother": "KIRAN DEVI", "dob": "04-03-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "54", "studentName": "SABITA KUMARI", "fatherFull": "VIDYANAND BHAGAT", "mother": "RAJPATI DEVI", "dob": "17-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "55", "studentName": "SALONI KUMARI", "fatherFull": "SHAMBHU KUMAR SINGH", "mother": "CHANDA DEVI", "dob": "05-10-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "56", "studentName": "SANEHA KUMARI", "fatherFull": "LALAN SAHNI", "mother": "NIRMALA DEVI", "dob": "15-02-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "57", "studentName": "SANNI KUMAR", "fatherFull": "UMIR RAM", "mother": "SIYA DEVI", "dob": "13-09-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "58", "studentName": "SAPNA KUMARI", "fatherFull": "MANTUN MAHTO", "mother": "KALAWATI DEVI", "dob": "07-08-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "59", "studentName": "SHASHIRANJAN KUMAR", "fatherFull": "SUNIL SAH", "mother": "GITA DEVI", "dob": "01-09-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "60", "studentName": "SHIVA KUMAR", "fatherFull": "AWADHESH SINGH", "mother": "REENA DEVI", "dob": "04-01-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "61", "studentName": "SHIWANI KUMARI", "fatherFull": "HARENDRA MAHATO", "mother": "MONIKA DEVI", "dob": "16-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "62", "studentName": "SNEHA KUMARI", "fatherFull": "UMESH RAY", "mother": "INDU DEVI", "dob": "01-01-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "63", "studentName": "SONALI KUMARI", "fatherFull": "LAKHINDRA RAY", "mother": "ANITA DEVI", "dob": "02-02-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "64", "studentName": "SONI KUMARI", "fatherFull": "UMESH MAHTO", "mother": "PRABHA DEVI", "dob": "01-01-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "65", "studentName": "SONI KUMARI", "fatherFull": "JITENDRA SAH", "mother": "DROPATI DEVI", "dob": "03-04-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "66", "studentName": "SUJIT KUMAR", "fatherFull": "MUSAFIR MAHTO", "mother": "TUNNI DEVI", "dob": "01-12-2006", "status": "Pending", "lastPdfKb": null}, {"appNo": "67", "studentName": "SUNNI KUMAR", "fatherFull": "VINOD RAM", "mother": "ANJU DEVI", "dob": "01-01-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "68", "studentName": "SURUCHI KUMARI", "fatherFull": "UMESH RAY", "mother": "PRAMILA DEVI", "dob": "05-06-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "69", "studentName": "SURUCHI KUMARI", "fatherFull": "SANTOSH KUMAR PATEL", "mother": "NIRMALA DEVI", "dob": "20-08-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "70", "studentName": "SUSHMA KUMARI", "fatherFull": "LAKSHMAN RAM", "mother": "ETWARI DEVI", "dob": "15-07-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "71", "studentName": "SWETA KUMARI", "fatherFull": "VINOD KUMAR", "mother": "SUNITA SAH", "dob": "10-04-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "72", "studentName": "VANDANA KUMARI", "fatherFull": "KAMESHWAR RAY", "mother": "RITA DEVI", "dob": "01-01-2008", "status": "Pending", "lastPdfKb": null}, {"appNo": "73", "studentName": "VICKY KUMAR", "fatherFull": "KISHUNDEV RAM", "mother": "SAKUNTALA DEVI", "dob": "04-04-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "74", "studentName": "VIKRAM KUMAR", "fatherFull": "LALAN SAH", "mother": "SUNITA DEVI", "dob": "06-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "75", "studentName": "AARTI KUMARI", "fatherFull": "RAM NARESH MAHTO", "mother": "SHANTI DEVI", "dob": "01-01-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "76", "studentName": "ABHINASH KUMAR", "fatherFull": "MAHESHWAR SINGH", "mother": "SUNITA DEVI", "dob": "07-08-2000", "status": "Pending", "lastPdfKb": null}, {"appNo": "77", "studentName": "ABHISHEK KUMAR", "fatherFull": "RAJESH RAM", "mother": "SARITA DEVI", "dob": "08-05-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "78", "studentName": "ABHISHEK KUMAR", "fatherFull": "TINKU SAHANI", "mother": "MINTU DEVI", "dob": "16-10-2010", "status": "Pending", "lastPdfKb": null}, {"appNo": "79", "studentName": "ANAMOL KUMAR", "fatherFull": "SUNIL SAH", "mother": "ANNU DEVI", "dob": "02-05-2009", "status": "Pending", "lastPdfKb": null}, {"appNo": "80", "studentName": "SAMIKSHA KUMARI", "fatherFull": "KUNDAN PANDAY", "mother": "CHANCHLA PANDAY", "dob": "11-07-2009", "status": "Pending", "lastPdfKb": null}];
     let students = [];
+
+    // Faculty (chosen by hand in the table)
+    const FACULTIES = ["Arts", "Commerce", "Science"];
+    function normalizeFaculty(v) {
+      const t = String(v || "").trim().toLowerCase();
+      return FACULTIES.find(f => f.toLowerCase() === t) || "";
+    }
 
     // Scanner state
     let activeStudentAppNo = null;
@@ -516,6 +545,7 @@
               mother: s.mother || "",
               dob: s.dob !== undefined ? s.dob : (s.dobPrefix || "0"),
               status: s.status || "Pending",
+              faculty: normalizeFaculty(s.faculty),
               lastPdfKb: s.lastPdfKb || null
             }));
             return;
@@ -589,11 +619,14 @@
       const emptyDesc = document.getElementById("emptyStateDesc");
       const q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
       const statusF = document.getElementById("statusFilter").value;
+      const facultyF = document.getElementById("facultyFilter").value;
 
       const filtered = students.filter(st => {
         if (statusF !== "ALL" && st.status !== statusF) return false;
+        if (facultyF === "NONE" && st.faculty) return false;
+        if (facultyF !== "ALL" && facultyF !== "NONE" && st.faculty !== facultyF) return false;
         if (q) {
-          const hay = `${st.appNo} ${st.studentName} ${st.fatherFull} ${st.mother} ${st.dob}`.toLowerCase();
+          const hay = `${st.appNo} ${st.studentName} ${st.fatherFull} ${st.mother} ${st.dob} ${st.faculty || ""}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
@@ -665,6 +698,15 @@
               onchange='updateStudentField(${appNoArg}, "dob", this.value)'
               class="w-24 text-center font-mono text-xs bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-600 focus:bg-white px-1.5 py-1 text-slate-700 outline-none rounded"
             />
+          </td>
+          <td class="py-3 px-2 text-center">
+            <select
+              onchange='updateStudentField(${appNoArg}, "faculty", this.value); renderTable();'
+              class="w-full max-w-[130px] text-xs font-semibold bg-white border ${st.faculty ? 'border-indigo-300 text-indigo-800' : 'border-dashed border-slate-300 text-slate-500'} focus:border-indigo-600 px-1.5 py-1 outline-none rounded-lg"
+            >
+              <option value="">Select</option>
+              ${FACULTIES.map(f => `<option value="${f}" ${st.faculty === f ? "selected" : ""}>${f}</option>`).join("")}
+            </select>
           </td>
           <td class="py-3 px-3 text-center">${statusBadge}</td>
           <td class="py-3 px-4 text-right">
@@ -745,6 +787,11 @@
       return map;
     }
 
+    // PDFs are grouped by faculty inside the ZIP (Arts / Commerce / Science / Not_Selected)
+    function facultyFolderName(st) {
+      return normalizeFaculty(st.faculty) || "Not_Selected";
+    }
+
     async function exportToZip() {
       if (students.length === 0) {
         showToast("Nothing to export. Load a CSV or add rows first.");
@@ -758,15 +805,16 @@
       const PDF_FOLDER = "Declaration_PDFs";
       const nameMap = buildPdfFileNameMap();
 
-      const headers = ["Sl.No", "Student Name", "Father Name", "Mother Name", "DOB", "Declaration_Status", "PDF_File"];
+      const headers = ["Sl.No", "Student Name", "Father Name", "Mother Name", "DOB", "Faculty", "Declaration_Status", "PDF_File"];
       const rows = students.map(s => [
         csvSafe(s.appNo),
         csvSafe(s.studentName || ""),
         csvSafe(s.fatherFull || ""),
         csvSafe(s.mother || ""),
         csvSafe(s.dob || ""),
+        csvSafe(s.faculty || ""),
         csvSafe(s.status || "Pending"),
-        csvSafe(nameMap.has(s) ? `${PDF_FOLDER}/${nameMap.get(s)}` : "")
+        csvSafe(nameMap.has(s) ? `${PDF_FOLDER}/${facultyFolderName(s)}/${nameMap.get(s)}` : "")
       ]);
       const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\r\n");
 
@@ -774,7 +822,7 @@
       const zip = new JSZip();
       zip.file(`31386_Inter_${students.length}_Students.csv`, csvContent);
       const folder = zip.folder(PDF_FOLDER);
-      nameMap.forEach((fileName, st) => folder.file(fileName, st.pdfBlob));
+      nameMap.forEach((fileName, st) => folder.folder(facultyFolderName(st)).file(fileName, st.pdfBlob));
 
       // Rows marked "PDF Ready" whose file is no longer in memory (e.g. page was refreshed)
       const missing = students.filter(s => /ready/i.test(String(s.status || "")) && !s.pdfBlob).length;
@@ -830,6 +878,7 @@
         let motherIdx = find(h => h.includes("mother"));
         let dobIdx = find(h => h === "dob" || h.includes("birth") || h.includes("dob"));
         let statusIdx = find(h => h.includes("declaration_status") || h === "status");
+        let facultyIdx = find(h => h.includes("faculty") || h === "stream");
 
         // Fallback to the standard column order: Sl.No, Student, Father, Mother, DOB
         if (slIdx === -1) slIdx = 0;
@@ -851,6 +900,7 @@
             fatherFull: cell(cols, fatherIdx),
             mother: cell(cols, motherIdx),
             dob: cell(cols, dobIdx),
+            faculty: facultyIdx !== -1 ? normalizeFaculty(cell(cols, facultyIdx)) : "",
             status: /ready|uploaded/i.test(rawStatus) ? "PDF Ready" : "Pending",
             lastPdfKb: null
           });
@@ -1958,227 +2008,203 @@
     }
   </script>
   <!-- ===================================================================== -->
-  <!-- PASSWORD CLOUD SYNC v5 (Compact Serializer + >4KB Attachment Reader   -->
-  <!-- + Case-Insensitive & Legacy Password Channel Fallback)                -->
+  <!-- CLOUD SYNC (student list + PDFs) via Supabase; see supabase-setup.sql  -->
   <!-- ===================================================================== -->
   <script>
     (function () {
-      const STORAGE_PWD_KEY = "inter_31386_sync_pwd_v1";
-      const CLOUD_SYNC_RELAY = "https://ntfy.sh";
-      let syncPassword = "";
+      // Optional: paste your values here once, so every device you host/copy this file to needs only the password.
+      const DEFAULT_SUPABASE_URL = "";
+      const DEFAULT_SUPABASE_KEY = "";
+
+      const K_PWD = "inter_31386_sync_pwd_v1";
+      const K_URL = "inter_31386_sb_url_v1";
+      const K_ANON = "inter_31386_sb_key_v1";
+      let cfg = { pwd: "", url: DEFAULT_SUPABASE_URL, anon: DEFAULT_SUPABASE_KEY };
       let autoPushTimer = null;
       let syncBusy = false;
+      let pulling = false;
 
-      try { syncPassword = localStorage.getItem(STORAGE_PWD_KEY) || ""; } catch (_) {}
+      try {
+        cfg.pwd = localStorage.getItem(K_PWD) || "";
+        cfg.url = localStorage.getItem(K_URL) || cfg.url;
+        cfg.anon = localStorage.getItem(K_ANON) || cfg.anon;
+      } catch (_) {}
 
-      function hasValidPassword() {
-        return syncPassword && syncPassword.trim().length >= 4;
+      const hasPwd = () => cfg.pwd && cfg.pwd.trim().length >= 4;
+      const configured = () => hasPwd() && cfg.url.trim() && cfg.anon.trim();
+      function baseUrl() {
+        let u = cfg.url.trim().replace(/\/+$/, "");
+        if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+        return u;
       }
 
-      function refreshSyncButton() {
-        const lbl = document.getElementById("syncOpenBtnLabel");
-        if (lbl) lbl.textContent = syncPassword ? "Password Synced" : "Set Sync Password";
+      function refreshButton() {
+        const l = document.getElementById("syncOpenBtnLabel");
+        if (l) l.textContent = configured() ? "Cloud Synced" : "Set Sync Password";
       }
-
-      function setSyncMessage(kind, text) {
+      function setMsg(kind, text) {
         const el = document.getElementById("syncStatusMsg");
         if (!el) return;
         el.className = "text-xs font-semibold " + (
           kind === "syncing" ? "text-indigo-600 animate-pulse" :
           kind === "success" ? "text-emerald-600" :
-          kind === "error" ? "text-rose-600" : "hidden"
-        );
+          kind === "error" ? "text-rose-600" : "hidden");
         el.textContent = text || "";
       }
 
       window.openSyncModal = function () {
-        document.getElementById("syncPasswordInput").value = syncPassword;
+        document.getElementById("syncPasswordInput").value = cfg.pwd;
+        document.getElementById("syncUrlInput").value = cfg.url;
+        document.getElementById("syncAnonInput").value = cfg.anon;
         document.getElementById("syncModal").classList.remove("hidden");
       };
       window.closeSyncModal = function () {
         document.getElementById("syncModal").classList.add("hidden");
       };
-      window.onSyncPasswordInput = function (val) {
-        syncPassword = val;
-        try { localStorage.setItem(STORAGE_PWD_KEY, syncPassword); } catch (_) {}
-        refreshSyncButton();
+      window.onSyncFieldInput = function (field, v) {
+        cfg[field] = v;
+        const k = field === "pwd" ? K_PWD : field === "url" ? K_URL : K_ANON;
+        try { localStorage.setItem(k, v); } catch (_) {}
+        refreshButton();
       };
 
-      // Case-Insensitive + Legacy Exact-Case SHA-256 Channel Derivation
-      async function getPasswordHash(password, normalizeCase = false) {
-        const cleanPwd = normalizeCase ? password.trim().toLowerCase() : password.trim();
-        const msgUint8 = new TextEncoder().encode("inter-31386-salt-v1-" + cleanPwd);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
-        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+      async function secretKey(password) {
+        const bytes = new TextEncoder().encode("uhs-31386-salt-v1-" + password.trim());
+        const hash = await crypto.subtle.digest("SHA-256", bytes);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
       }
 
-      // Compact Cloud Sync Serializer (packTransactions / unpackTransactions)
-      // Compresses student records into compact arrays so 80+ records stay well under ntfy.sh's 4KB inline limit
-      function packTransactions(list) {
-        return list.map(s => [
-          String(s.appNo || s.sno || ""),
-          String(s.studentName || ""),
-          String(s.fatherFull || s.fatherName || ""),
-          String(s.mother || ""),
-          String(s.dob !== undefined ? s.dob : "0"),
-          s.status === "PDF Ready" ? 1 : 0,
-          s.lastPdfKb || ""
-        ]);
+      async function rpc(fn, args) {
+        let res;
+        try {
+          res = await fetch(baseUrl() + "/rest/v1/rpc/" + fn, {
+            method: "POST",
+            headers: { "apikey": cfg.anon.trim(), "Content-Type": "application/json" },
+            body: JSON.stringify(args)
+          });
+        } catch (_) {
+          throw new Error("Cannot reach Supabase. Check your internet connection and the Project URL.");
+        }
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (_) {}
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the key. Check the Anon/Publishable Key.");
+          if (res.status === 404) throw new Error("Sync functions not found. Run supabase-setup.sql in the Supabase SQL Editor first.");
+          if (res.status === 503 || res.status === 540) throw new Error("Supabase project is paused or starting. Open the Supabase dashboard and restore it, then retry.");
+          throw new Error((data && (data.message || data.error)) || ("Supabase error (HTTP " + res.status + ")"));
+        }
+        return data;
       }
 
-      function unpackTransactions(packed) {
-        if (!Array.isArray(packed)) return [];
-        return packed.map((row, idx) => {
-          if (!Array.isArray(row)) {
-            return {
-              appNo: row.appNo || row.sno || String(idx + 1),
-              studentName: row.studentName || "",
-              fatherFull: row.fatherFull || row.fatherName || "",
-              mother: row.mother || "",
-              dob: row.dob !== undefined ? row.dob : (row.dobPrefix || "0"),
-              status: row.status || "Pending",
-              lastPdfKb: row.lastPdfKb || null
-            };
-          }
-          return {
-            appNo: String(row[0] || (idx + 1)),
-            studentName: String(row[1] || ""),
-            fatherFull: String(row[2] || ""),
-            mother: String(row[3] || ""),
-            dob: String(row[4] !== undefined ? row[4] : "0"),
-            status: row[5] === 1 || row[5] === "1" || row[5] === "PDF Ready" ? "PDF Ready" : "Pending",
-            lastPdfKb: row[6] ? String(row[6]) : null
-          };
-        });
+      async function blobToBase64(blob) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        return btoa(bin);
       }
+      function base64ToBlob(b64) {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: "application/pdf" });
+      }
+      const plain = s => { const { pdfBlob, ...rest } = s; return rest; };
 
       window.syncWithPasswordCloud = async function (mode, showAlert) {
         if (mode === undefined) mode = "push";
         if (showAlert === undefined) showAlert = true;
-
-        if (!hasValidPassword()) {
-          if (showAlert) setSyncMessage("error", "Please enter a password of at least 4 characters.");
+        if (!configured()) {
+          if (showAlert) setMsg("error", "Enter the Supabase URL, the key, and a password of at least 4 characters.");
           return;
         }
-        if (syncBusy) return;
+        if (syncBusy) {
+          if (!showAlert) { clearTimeout(autoPushTimer); autoPushTimer = setTimeout(() => window.syncWithPasswordCloud("push", false), 2000); }
+          return;
+        }
         syncBusy = true;
-        if (showAlert) setSyncMessage("syncing", mode === "push" ? "Compressing & uploading student data to cloud..." : "Downloading student data from cloud...");
-
         try {
-          // Use case-insensitive hash as primary, and exact-case hash as fallback
-          const normKey = await getPasswordHash(syncPassword, true);
-          const exactKey = await getPasswordHash(syncPassword, false);
-          const primaryTopic = "inter_sync_bin_" + normKey;
-          const legacyTopic = "inter_sync_bin_" + exactKey;
+          const key = await secretKey(cfg.pwd);
 
           if (mode === "push") {
-            const compactPacket = JSON.stringify({
-              u: new Date().toISOString(),
-              p: packTransactions(students)
-            });
+            if (showAlert) setMsg("syncing", "Uploading student list...");
+            await rpc("uhs_put_students", { p_key: key, p_students: students.map(plain) });
 
-            // Push to normalized channel (and legacy exact-case channel if different)
-            const res = await fetch(CLOUD_SYNC_RELAY + "/" + primaryTopic, {
-              method: "POST",
-              headers: { "Title": "Inter 31386 Sync" },
-              body: compactPacket
-            });
-
-            if (primaryTopic !== legacyTopic) {
-              fetch(CLOUD_SYNC_RELAY + "/" + legacyTopic, { method: "POST", body: compactPacket }).catch(() => {});
+            const listed = (await rpc("uhs_list_pdfs", { p_key: key })) || [];
+            const onServer = {};
+            listed.forEach(x => { onServer[x.app_no] = x.size; });
+            const todo = students.filter(s => s.pdfBlob && onServer[s.appNo] !== s.pdfBlob.size);
+            let done = 0;
+            for (const s of todo) {
+              if (showAlert) setMsg("syncing", "Uploading PDFs " + (done + 1) + " / " + todo.length + "...");
+              await rpc("uhs_put_pdf", { p_key: key, p_app_no: String(s.appNo), p_size: s.pdfBlob.size, p_data: await blobToBase64(s.pdfBlob) });
+              done++;
             }
-
-            if (!res.ok) throw new Error("Cloud Push Failed (HTTP " + res.status + ")");
-
-            if (showAlert) setSyncMessage("success", "\u2713 Pushed " + students.length + " students to Cloud! Now click \"Pull from Cloud\" on your other device.");
+            if (showAlert) setMsg("success", "\u2713 Pushed " + students.length + " students and " + done + " new/updated PDF(s) to the cloud.");
           } else {
-            // Helper to pull & parse from a given ntfy topic (supports both <4KB inline messages & >4KB attachments)
-            const fetchFromTopic = async (topic) => {
-              const res = await fetch(CLOUD_SYNC_RELAY + "/" + topic + "/json?poll=1&since=all", {
-                method: "GET",
-                cache: "no-store"
-              });
-              if (!res.ok) return null;
-              const rawLines = (await res.text()).trim();
-              if (!rawLines) return null;
+            if (showAlert) setMsg("syncing", "Downloading student list...");
+            const data = await rpc("uhs_get_students", { p_key: key });
+            if (!Array.isArray(data)) throw new Error("No data found for this password yet. Click 'Save & Push Sync' on your primary device first!");
 
-              const lines = rawLines.split("\n").filter(Boolean);
-              for (let i = lines.length - 1; i >= 0; i--) {
-                try {
-                  const event = JSON.parse(lines[i]);
-                  if (event.event !== "message") continue;
+            const local = {};
+            students.forEach(s => { if (s.pdfBlob) local[s.appNo] = s.pdfBlob; });
 
-                  let parsedMsg = null;
-                  // Case A: Standard inline message (<4KB)
-                  if (event.message && event.message.trim().startsWith("{")) {
-                    parsedMsg = JSON.parse(event.message);
-                  }
-                  // Case B: Payload >4KB converted by ntfy.sh into an external attachment
-                  else if (event.attachment && event.attachment.url) {
-                    const attRes = await fetch(event.attachment.url, { cache: "no-store" });
-                    if (attRes.ok) parsedMsg = await attRes.json();
-                  }
+            const pulled = data.map(s => ({
+              appNo: s.appNo || s.sno || "",
+              category: s.category || "REGULAR",
+              studentName: s.studentName || "",
+              fatherFull: s.fatherFull || s.fatherName || "",
+              mother: s.mother || "",
+              gender: s.gender || "MALE",
+              dob: s.dob !== undefined ? s.dob : (s.dobPrefix || "0"),
+              status: s.status || "Pending",
+              faculty: normalizeFaculty(s.faculty),
+              lastPdfKb: s.lastPdfKb || null
+            }));
 
-                  if (parsedMsg) {
-                    if (Array.isArray(parsedMsg.p)) return unpackTransactions(parsedMsg.p);
-                    if (Array.isArray(parsedMsg.students)) return unpackTransactions(parsedMsg.students);
-                    if (parsedMsg.blobUrl) {
-                      const blobRes = await fetch(parsedMsg.blobUrl, { headers: { "Accept": "application/json" } });
-                      if (blobRes.ok) {
-                        const blobJson = await blobRes.json();
-                        if (blobJson && Array.isArray(blobJson.students)) return unpackTransactions(blobJson.students);
-                      }
-                    }
-                  }
-                } catch (_) {}
-              }
-              return null;
-            };
+            const onServer = {};
+            ((await rpc("uhs_list_pdfs", { p_key: key })) || []).forEach(x => { onServer[x.app_no] = x.size; });
 
-            let pulled = await fetchFromTopic(primaryTopic);
-            if (!pulled && primaryTopic !== legacyTopic) {
-              pulled = await fetchFromTopic(legacyTopic);
-            }
-
-            if (!Array.isArray(pulled)) {
-              throw new Error("No cloud data found for this password yet. Click 'Save & Push Sync' on your primary device first!");
-            }
-
-            // Keep locally generated PDFs for students that still exist after the pull
-            const localBlobs = {};
-            students.forEach(s => { if (s.pdfBlob) localBlobs[s.appNo] = s.pdfBlob; });
-
-            students = pulled.map(rec => {
-              if (localBlobs[rec.appNo]) rec.pdfBlob = localBlobs[rec.appNo];
-              return rec;
+            const need = [];
+            pulled.forEach(s => {
+              const lb = local[s.appNo];
+              if (onServer[s.appNo] === undefined) { if (lb) s.pdfBlob = lb; }
+              else if (lb && lb.size === onServer[s.appNo]) s.pdfBlob = lb;
+              else need.push(s);
             });
+            let got = 0;
+            for (const s of need) {
+              if (showAlert) setMsg("syncing", "Downloading PDFs " + (got + 1) + " / " + need.length + "...");
+              const b64 = await rpc("uhs_get_pdf", { p_key: key, p_app_no: String(s.appNo) });
+              if (typeof b64 === "string" && b64) { s.pdfBlob = base64ToBlob(b64); got++; }
+            }
 
+            students = pulled;
             pulling = true;
             try { saveToStorage(); } finally { pulling = false; }
             renderTable();
-
-            if (showAlert) setSyncMessage("success", "\u2713 Pulled " + students.length + " students from Cloud!");
-            showToast("Pulled " + students.length + " students from Cloud.");
+            const pdfCount = students.filter(s => s.pdfBlob).length;
+            if (showAlert) setMsg("success", "\u2713 Pulled " + students.length + " students and " + pdfCount + " PDF(s) from the cloud.");
+            showToast("Pulled " + students.length + " students, " + pdfCount + " PDF(s).");
           }
         } catch (err) {
-          if (showAlert) setSyncMessage("error", err.message);
+          if (showAlert) setMsg("error", err.message);
           else console.warn("Auto-sync failed:", err);
         } finally {
           syncBusy = false;
         }
       };
 
-      // Auto-push after every save, debounced
-      let pulling = false;
+      // Auto-push after every save (debounced). Wraps saveToStorage without editing it.
       const originalSave = saveToStorage;
       saveToStorage = function () {
         originalSave.apply(this, arguments);
-        if (pulling || !hasValidPassword()) return;
+        if (pulling || !configured()) return;
         clearTimeout(autoPushTimer);
         autoPushTimer = setTimeout(() => window.syncWithPasswordCloud("push", false), 1500);
       };
 
-      refreshSyncButton();
+      refreshButton();
     })();
   </script>
   <!-- Built-in icons: replaces Font Awesome <i> tags with inline SVG (no font / internet needed). Icon shapes: Font Awesome Free, CC BY 4.0 -->

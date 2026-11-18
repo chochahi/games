@@ -464,21 +464,31 @@
   </footer>
 
   <!-- ===================================================================== -->
-  <!-- MODAL: PASSWORD CLOUD SYNC                                             -->
+  <!-- MODAL: CLOUD SYNC (Supabase)                                           -->
   <!-- ===================================================================== -->
   <div id="syncModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[92vh] overflow-y-auto p-6 space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">Live Password Cloud Sync</h3>
+        <h3 class="text-base font-bold text-slate-900">Cloud Sync (works anywhere)</h3>
         <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-700 text-lg leading-none">&#10005;</button>
       </div>
       <p class="text-xs text-slate-600 leading-relaxed">
-        1. Enter your secret password on your <b>PC / Main Phone</b> and click <b>"Save &amp; Push Sync"</b>.<br/>
-        2. Open your <b>Other Device</b>, enter the <b>exact same password</b>, and click <b>"Pull from Cloud"</b>.
+        Syncs the student list <b>and generated PDFs</b> through your own free Supabase project, from any device with internet.
+        Enter the <b>same three values on every device</b>, push on one, pull on the other.
       </p>
       <div>
+        <label class="text-xs font-semibold text-slate-700">Supabase Project URL</label>
+        <input id="syncUrlInput" type="text" placeholder="https://xxxxxxxx.supabase.co" oninput="onSyncFieldInput('url', this.value)"
+          class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-700">Supabase Anon / Publishable Key</label>
+        <input id="syncAnonInput" type="text" placeholder="eyJ... or sb_publishable_..." oninput="onSyncFieldInput('anon', this.value)"
+          class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
+      </div>
+      <div>
         <label class="text-xs font-semibold text-slate-700">Secret Sync Password</label>
-        <input id="syncPasswordInput" type="text" placeholder="e.g. UHS51860Sync" oninput="onSyncPasswordInput(this.value)"
+        <input id="syncPasswordInput" type="text" placeholder="a long password only you know" oninput="onSyncFieldInput('pwd', this.value)"
           class="w-full mt-1 bg-slate-50 border border-slate-300 focus:border-indigo-600 outline-none rounded-xl px-3 py-2 text-xs text-slate-900 font-mono" />
       </div>
       <p id="syncStatusMsg" class="text-xs font-semibold hidden"></p>
@@ -2082,235 +2092,202 @@
     }
   </script>
   <!-- ===================================================================== -->
-  <!-- PASSWORD CLOUD SYNC v5 (Compact Serializer + >4KB Attachment Reader   -->
-  <!-- + Case-Insensitive & Legacy Password Channel Fallback)                -->
+  <!-- CLOUD SYNC (student list + PDFs) via Supabase; see supabase-setup.sql  -->
   <!-- ===================================================================== -->
   <script>
     (function () {
-      const STORAGE_PWD_KEY = "uhs_51860_sync_pwd_v1";
-      const CLOUD_SYNC_RELAY = "https://ntfy.sh";
-      let syncPassword = "";
+      // Optional: paste your values here once, so every device you host/copy this file to needs only the password.
+      const DEFAULT_SUPABASE_URL = "";
+      const DEFAULT_SUPABASE_KEY = "";
+
+      const K_PWD = "uhs_51860_sync_pwd_v1";
+      const K_URL = "uhs_51860_sb_url_v1";
+      const K_ANON = "uhs_51860_sb_key_v1";
+      let cfg = { pwd: "", url: DEFAULT_SUPABASE_URL, anon: DEFAULT_SUPABASE_KEY };
       let autoPushTimer = null;
       let syncBusy = false;
+      let pulling = false;
 
-      try { syncPassword = localStorage.getItem(STORAGE_PWD_KEY) || ""; } catch (_) {}
+      try {
+        cfg.pwd = localStorage.getItem(K_PWD) || "";
+        cfg.url = localStorage.getItem(K_URL) || cfg.url;
+        cfg.anon = localStorage.getItem(K_ANON) || cfg.anon;
+      } catch (_) {}
 
-      function hasValidPassword() {
-        return syncPassword && syncPassword.trim().length >= 4;
+      const hasPwd = () => cfg.pwd && cfg.pwd.trim().length >= 4;
+      const configured = () => hasPwd() && cfg.url.trim() && cfg.anon.trim();
+      function baseUrl() {
+        let u = cfg.url.trim().replace(/\/+$/, "");
+        if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+        return u;
       }
 
-      function refreshSyncButton() {
-        const lbl = document.getElementById("syncOpenBtnLabel");
-        if (lbl) lbl.textContent = syncPassword ? "Password Synced" : "Set Sync Password";
+      function refreshButton() {
+        const l = document.getElementById("syncOpenBtnLabel");
+        if (l) l.textContent = configured() ? "Cloud Synced" : "Set Sync Password";
       }
-
-      function setSyncMessage(kind, text) {
+      function setMsg(kind, text) {
         const el = document.getElementById("syncStatusMsg");
         if (!el) return;
         el.className = "text-xs font-semibold " + (
           kind === "syncing" ? "text-indigo-600 animate-pulse" :
           kind === "success" ? "text-emerald-600" :
-          kind === "error" ? "text-rose-600" : "hidden"
-        );
+          kind === "error" ? "text-rose-600" : "hidden");
         el.textContent = text || "";
       }
 
       window.openSyncModal = function () {
-        document.getElementById("syncPasswordInput").value = syncPassword;
+        document.getElementById("syncPasswordInput").value = cfg.pwd;
+        document.getElementById("syncUrlInput").value = cfg.url;
+        document.getElementById("syncAnonInput").value = cfg.anon;
         document.getElementById("syncModal").classList.remove("hidden");
       };
       window.closeSyncModal = function () {
         document.getElementById("syncModal").classList.add("hidden");
       };
-      window.onSyncPasswordInput = function (val) {
-        syncPassword = val;
-        try { localStorage.setItem(STORAGE_PWD_KEY, syncPassword); } catch (_) {}
-        refreshSyncButton();
+      window.onSyncFieldInput = function (field, v) {
+        cfg[field] = v;
+        const k = field === "pwd" ? K_PWD : field === "url" ? K_URL : K_ANON;
+        try { localStorage.setItem(k, v); } catch (_) {}
+        refreshButton();
       };
 
-      // Case-Insensitive + Legacy Exact-Case SHA-256 Channel Derivation
-      async function getPasswordHash(password, normalizeCase = false) {
-        const cleanPwd = normalizeCase ? password.trim().toLowerCase() : password.trim();
-        const msgUint8 = new TextEncoder().encode("uhs-51860-salt-v1-" + cleanPwd);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8);
-        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+      async function secretKey(password) {
+        const bytes = new TextEncoder().encode("uhs-51860-salt-v1-" + password.trim());
+        const hash = await crypto.subtle.digest("SHA-256", bytes);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
       }
 
-      // Compact Cloud Sync Serializer (packTransactions / unpackTransactions)
-      // Compresses student records into compact arrays so 60+ records stay well under ntfy.sh's 4KB inline limit
-      function packTransactions(list) {
-        return list.map(s => [
-          String(s.appNo || s.sno || ""),
-          (s.category || "REGULAR").toUpperCase() === "REGULAR" ? "R" : (s.category || "REGULAR").toUpperCase() === "PRIVATE" ? "P" : (s.category || "REGULAR"),
-          String(s.studentName || ""),
-          String(s.fatherFull || s.fatherName || ""),
-          String(s.mother || ""),
-          (s.gender || "MALE").toUpperCase().startsWith("F") ? "F" : "M",
-          String(s.dob !== undefined ? s.dob : "0"),
-          s.status === "PDF Ready" ? 1 : 0,
-          s.lastPdfKb || ""
-        ]);
+      async function rpc(fn, args) {
+        let res;
+        try {
+          res = await fetch(baseUrl() + "/rest/v1/rpc/" + fn, {
+            method: "POST",
+            headers: { "apikey": cfg.anon.trim(), "Content-Type": "application/json" },
+            body: JSON.stringify(args)
+          });
+        } catch (_) {
+          throw new Error("Cannot reach Supabase. Check your internet connection and the Project URL.");
+        }
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch (_) {}
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the key. Check the Anon/Publishable Key.");
+          if (res.status === 404) throw new Error("Sync functions not found. Run supabase-setup.sql in the Supabase SQL Editor first.");
+          if (res.status === 503 || res.status === 540) throw new Error("Supabase project is paused or starting. Open the Supabase dashboard and restore it, then retry.");
+          throw new Error((data && (data.message || data.error)) || ("Supabase error (HTTP " + res.status + ")"));
+        }
+        return data;
       }
 
-      function unpackTransactions(packed) {
-        if (!Array.isArray(packed)) return [];
-        return packed.map((row, idx) => {
-          if (!Array.isArray(row)) {
-            return {
-              appNo: row.appNo || row.sno || String(idx + 1),
-              category: row.category || "REGULAR",
-              studentName: row.studentName || "",
-              fatherFull: row.fatherFull || row.fatherName || "",
-              mother: row.mother || "",
-              gender: row.gender || "MALE",
-              dob: row.dob !== undefined ? row.dob : (row.dobPrefix || "0"),
-              status: row.status || "Pending",
-              lastPdfKb: row.lastPdfKb || null
-            };
-          }
-          const catCode = row[1];
-          const category = catCode === "R" ? "REGULAR" : catCode === "P" ? "PRIVATE" : (catCode || "REGULAR");
-          return {
-            appNo: String(row[0] || (idx + 1)),
-            category: category,
-            studentName: String(row[2] || ""),
-            fatherFull: String(row[3] || ""),
-            mother: String(row[4] || ""),
-            gender: row[5] === "F" ? "FEMALE" : "MALE",
-            dob: String(row[6] !== undefined ? row[6] : "0"),
-            status: row[7] === 1 || row[7] === "1" || row[7] === "PDF Ready" ? "PDF Ready" : "Pending",
-            lastPdfKb: row[8] ? String(row[8]) : null
-          };
-        });
+      async function blobToBase64(blob) {
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        return btoa(bin);
       }
+      function base64ToBlob(b64) {
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: "application/pdf" });
+      }
+      const plain = s => { const { pdfBlob, ...rest } = s; return rest; };
 
       window.syncWithPasswordCloud = async function (mode, showAlert) {
         if (mode === undefined) mode = "push";
         if (showAlert === undefined) showAlert = true;
-
-        if (!hasValidPassword()) {
-          if (showAlert) setSyncMessage("error", "Please enter a password of at least 4 characters.");
+        if (!configured()) {
+          if (showAlert) setMsg("error", "Enter the Supabase URL, the key, and a password of at least 4 characters.");
           return;
         }
-        if (syncBusy) return;
+        if (syncBusy) {
+          if (!showAlert) { clearTimeout(autoPushTimer); autoPushTimer = setTimeout(() => window.syncWithPasswordCloud("push", false), 2000); }
+          return;
+        }
         syncBusy = true;
-        if (showAlert) setSyncMessage("syncing", mode === "push" ? "Compressing & uploading student data to cloud..." : "Downloading student data from cloud...");
-
         try {
-          // Use case-insensitive hash as primary, and exact-case hash as fallback
-          const normKey = await getPasswordHash(syncPassword, true);
-          const exactKey = await getPasswordHash(syncPassword, false);
-          const primaryTopic = "uhs_sync_bin_" + normKey;
-          const legacyTopic = "uhs_sync_bin_" + exactKey;
+          const key = await secretKey(cfg.pwd);
 
           if (mode === "push") {
-            const compactPacket = JSON.stringify({
-              u: new Date().toISOString(),
-              p: packTransactions(students)
-            });
+            if (showAlert) setMsg("syncing", "Uploading student list...");
+            await rpc("uhs_put_students", { p_key: key, p_students: students.map(plain) });
 
-            // Push to normalized channel (and legacy exact-case channel if different)
-            const res = await fetch(CLOUD_SYNC_RELAY + "/" + primaryTopic, {
-              method: "POST",
-              headers: { "Title": "UHS 51860 Matric Sync" },
-              body: compactPacket
-            });
-
-            if (primaryTopic !== legacyTopic) {
-              fetch(CLOUD_SYNC_RELAY + "/" + legacyTopic, { method: "POST", body: compactPacket }).catch(() => {});
+            const listed = (await rpc("uhs_list_pdfs", { p_key: key })) || [];
+            const onServer = {};
+            listed.forEach(x => { onServer[x.app_no] = x.size; });
+            const todo = students.filter(s => s.pdfBlob && onServer[s.appNo] !== s.pdfBlob.size);
+            let done = 0;
+            for (const s of todo) {
+              if (showAlert) setMsg("syncing", "Uploading PDFs " + (done + 1) + " / " + todo.length + "...");
+              await rpc("uhs_put_pdf", { p_key: key, p_app_no: String(s.appNo), p_size: s.pdfBlob.size, p_data: await blobToBase64(s.pdfBlob) });
+              done++;
             }
-
-            if (!res.ok) throw new Error("Cloud Push Failed (HTTP " + res.status + ")");
-
-            if (showAlert) setSyncMessage("success", "\u2713 Pushed " + students.length + " students to Cloud! Now click \"Pull from Cloud\" on your other device.");
+            if (showAlert) setMsg("success", "\u2713 Pushed " + students.length + " students and " + done + " new/updated PDF(s) to the cloud.");
           } else {
-            // Helper to pull & parse from a given ntfy topic (supports both <4KB inline messages & >4KB attachments)
-            const fetchFromTopic = async (topic) => {
-              const res = await fetch(CLOUD_SYNC_RELAY + "/" + topic + "/json?poll=1&since=all", {
-                method: "GET",
-                cache: "no-store"
-              });
-              if (!res.ok) return null;
-              const rawLines = (await res.text()).trim();
-              if (!rawLines) return null;
+            if (showAlert) setMsg("syncing", "Downloading student list...");
+            const data = await rpc("uhs_get_students", { p_key: key });
+            if (!Array.isArray(data)) throw new Error("No data found for this password yet. Click 'Save & Push Sync' on your primary device first!");
 
-              const lines = rawLines.split("\n").filter(Boolean);
-              for (let i = lines.length - 1; i >= 0; i--) {
-                try {
-                  const event = JSON.parse(lines[i]);
-                  if (event.event !== "message") continue;
+            const local = {};
+            students.forEach(s => { if (s.pdfBlob) local[s.appNo] = s.pdfBlob; });
 
-                  let parsedMsg = null;
-                  // Case A: Standard inline message (<4KB)
-                  if (event.message && event.message.trim().startsWith("{")) {
-                    parsedMsg = JSON.parse(event.message);
-                  }
-                  // Case B: Payload >4KB converted by ntfy.sh into an external attachment
-                  else if (event.attachment && event.attachment.url) {
-                    const attRes = await fetch(event.attachment.url, { cache: "no-store" });
-                    if (attRes.ok) parsedMsg = await attRes.json();
-                  }
+            const pulled = data.map(s => ({
+              appNo: s.appNo || s.sno || "",
+              category: s.category || "REGULAR",
+              studentName: s.studentName || "",
+              fatherFull: s.fatherFull || s.fatherName || "",
+              mother: s.mother || "",
+              gender: s.gender || "MALE",
+              dob: s.dob !== undefined ? s.dob : (s.dobPrefix || "0"),
+              status: s.status || "Pending",
+              lastPdfKb: s.lastPdfKb || null
+            }));
 
-                  if (parsedMsg) {
-                    if (Array.isArray(parsedMsg.p)) return unpackTransactions(parsedMsg.p);
-                    if (Array.isArray(parsedMsg.students)) return unpackTransactions(parsedMsg.students);
-                    if (parsedMsg.blobUrl) {
-                      const blobRes = await fetch(parsedMsg.blobUrl, { headers: { "Accept": "application/json" } });
-                      if (blobRes.ok) {
-                        const blobJson = await blobRes.json();
-                        if (blobJson && Array.isArray(blobJson.students)) return unpackTransactions(blobJson.students);
-                      }
-                    }
-                  }
-                } catch (_) {}
-              }
-              return null;
-            };
+            const onServer = {};
+            ((await rpc("uhs_list_pdfs", { p_key: key })) || []).forEach(x => { onServer[x.app_no] = x.size; });
 
-            let pulled = await fetchFromTopic(primaryTopic);
-            if (!pulled && primaryTopic !== legacyTopic) {
-              pulled = await fetchFromTopic(legacyTopic);
-            }
-
-            if (!Array.isArray(pulled)) {
-              throw new Error("No cloud data found for this password yet. Click 'Save & Push Sync' on your primary device first!");
-            }
-
-            // Keep locally generated PDFs for students that still exist after the pull
-            const localBlobs = {};
-            students.forEach(s => { if (s.pdfBlob) localBlobs[s.appNo] = s.pdfBlob; });
-
-            students = pulled.map(rec => {
-              if (localBlobs[rec.appNo]) rec.pdfBlob = localBlobs[rec.appNo];
-              return rec;
+            const need = [];
+            pulled.forEach(s => {
+              const lb = local[s.appNo];
+              if (onServer[s.appNo] === undefined) { if (lb) s.pdfBlob = lb; }
+              else if (lb && lb.size === onServer[s.appNo]) s.pdfBlob = lb;
+              else need.push(s);
             });
+            let got = 0;
+            for (const s of need) {
+              if (showAlert) setMsg("syncing", "Downloading PDFs " + (got + 1) + " / " + need.length + "...");
+              const b64 = await rpc("uhs_get_pdf", { p_key: key, p_app_no: String(s.appNo) });
+              if (typeof b64 === "string" && b64) { s.pdfBlob = base64ToBlob(b64); got++; }
+            }
 
+            students = pulled;
             pulling = true;
             try { saveToStorage(); } finally { pulling = false; }
             renderTable();
-
-            if (showAlert) setSyncMessage("success", "\u2713 Pulled " + students.length + " students from Cloud!");
-            showToast("Pulled " + students.length + " students from Cloud.");
+            const pdfCount = students.filter(s => s.pdfBlob).length;
+            if (showAlert) setMsg("success", "\u2713 Pulled " + students.length + " students and " + pdfCount + " PDF(s) from the cloud.");
+            showToast("Pulled " + students.length + " students, " + pdfCount + " PDF(s).");
           }
         } catch (err) {
-          if (showAlert) setSyncMessage("error", err.message);
+          if (showAlert) setMsg("error", err.message);
           else console.warn("Auto-sync failed:", err);
         } finally {
           syncBusy = false;
         }
       };
 
-      // Auto-push after every save, debounced
-      let pulling = false;
+      // Auto-push after every save (debounced). Wraps saveToStorage without editing it.
       const originalSave = saveToStorage;
       saveToStorage = function () {
         originalSave.apply(this, arguments);
-        if (pulling || !hasValidPassword()) return;
+        if (pulling || !configured()) return;
         clearTimeout(autoPushTimer);
         autoPushTimer = setTimeout(() => window.syncWithPasswordCloud("push", false), 1500);
       };
 
-      refreshSyncButton();
+      refreshButton();
     })();
   </script>
   <!-- Built-in icons: replaces Font Awesome <i> tags with inline SVG (no font / internet needed). Icon shapes: Font Awesome Free, CC BY 4.0 -->
