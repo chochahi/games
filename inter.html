@@ -75,6 +75,23 @@
           <input type="file" id="csvFileInput" accept=".csv,text/csv" class="hidden" onchange="handleCSVUpload(event)" />
         </label>
 
+        <!-- Load a separate CSV per faculty: every student in the file gets that faculty automatically -->
+        <label class="cursor-pointer px-3 py-2 rounded-xl bg-indigo-500/80 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition" title="Load the Arts CSV - all students are marked Arts. Replaces only the existing Arts students.">
+          <i class="fa-solid fa-file-csv text-amber-300"></i>
+          <span>Arts CSV</span>
+          <input type="file" accept=".csv,text/csv" class="hidden" onchange="handleCSVUpload(event, 'Arts')" />
+        </label>
+        <label class="cursor-pointer px-3 py-2 rounded-xl bg-indigo-500/80 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition" title="Load the Commerce CSV - all students are marked Commerce. Replaces only the existing Commerce students.">
+          <i class="fa-solid fa-file-csv text-amber-300"></i>
+          <span>Commerce CSV</span>
+          <input type="file" accept=".csv,text/csv" class="hidden" onchange="handleCSVUpload(event, 'Commerce')" />
+        </label>
+        <label class="cursor-pointer px-3 py-2 rounded-xl bg-indigo-500/80 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm border border-white/20 flex items-center gap-2 transition" title="Load the Science CSV - all students are marked Science. Replaces only the existing Science students.">
+          <i class="fa-solid fa-file-csv text-amber-300"></i>
+          <span>Science CSV</span>
+          <input type="file" accept=".csv,text/csv" class="hidden" onchange="handleCSVUpload(event, 'Science')" />
+        </label>
+
         <button onclick="exportToZip()" class="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-semibold text-xs sm:text-sm shadow flex items-center gap-2 transition" title="Downloads one ZIP: student CSV with status + all scanned PDFs">
           <i class="fa-solid fa-file-zipper"></i>
           <span>Export (CSV + PDFs ZIP)</span>
@@ -856,7 +873,39 @@
       return str;
     }
 
-    function handleCSVUpload(event) {
+    // Faculty CSV import: marks every student with the faculty and replaces ONLY that faculty's earlier students.
+    // Every row is looked up by Sl. No, so if a Sl. No is already used by another faculty it gets a prefix (ART-, COM-, SCI-).
+    function mergeFacultyImport(imported, faculty, fileName) {
+      let keep = students.filter(s => normalizeFaculty(s.faculty) !== faculty);
+      const unassigned = keep.filter(s => !normalizeFaculty(s.faculty)).length;
+      if (unassigned > 0 && confirm(
+        unassigned + " student(s) in the list have no faculty yet (from an earlier list).\n\n" +
+        "OK = remove them and keep only the faculty CSV lists\nCancel = keep them as well")) {
+        keep = keep.filter(s => normalizeFaculty(s.faculty));
+      }
+      const used = new Set(keep.map(s => String(s.appNo)));
+      const prefix = faculty.slice(0, 3).toUpperCase();
+      let renamed = 0;
+      imported.forEach(st => {
+        st.faculty = faculty;
+        let id = String(st.appNo);
+        if (used.has(id)) {
+          id = prefix + "-" + st.appNo;
+          let n = 2;
+          while (used.has(id)) id = prefix + "-" + st.appNo + "-" + (n++);
+          renamed++;
+        }
+        used.add(id);
+        st.appNo = id;
+      });
+      students = keep.concat(imported);
+      saveToStorage();
+      renderTable();
+      showToast(`Loaded ${imported.length} ${faculty} students from ${fileName}. Total: ${students.length}.` +
+        (renamed ? ` ${renamed} Sl. No clashed, so they were prefixed ${prefix}-.` : ""));
+    }
+
+    function handleCSVUpload(event, forcedFaculty) {
       const file = event.target.files[0];
       if (!file) return;
 
@@ -906,7 +955,10 @@
           });
         }
 
-        if (imported.length > 0) {
+        if (imported.length > 0 && forcedFaculty) {
+          mergeFacultyImport(imported, forcedFaculty, file.name);
+          event.target.value = "";
+        } else if (imported.length > 0) {
           students = imported;
           saveToStorage();
           renderTable();
