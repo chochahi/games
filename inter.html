@@ -482,7 +482,7 @@
       </div>
       <p class="text-xs text-slate-600 leading-relaxed">
         Syncs the student list <b>and generated PDFs</b> through your own free Supabase project, from any device with internet.
-        Enter the <b>same three values on every device</b>, push on one, pull on the other.
+        Enter the <b>same three values on every device</b>, push on one, pull on the other. The <b>first push</b> sets this password for this page (up to 200 students per stream, PDFs up to 150 KB).
       </p>
       <div>
         <label class="text-xs font-semibold text-slate-700">Supabase Project URL</label>
@@ -2065,8 +2065,9 @@
   <script>
     (function () {
       // Optional: paste your values here once, so every device you host/copy this file to needs only the password.
-      const DEFAULT_SUPABASE_URL = "https://iunuvvmzzvbcsqepcjfj.supabase.co";
-      const DEFAULT_SUPABASE_KEY = "sb_publishable_8dVB8VMHkFIMBckd1syrLQ_vtjNotXl";
+      const DEFAULT_SUPABASE_URL = "";
+      const DEFAULT_SUPABASE_KEY = "";
+      const SYNC_APP = "inter";   // tells the database which page is syncing
 
       const K_PWD = "inter_31386_sync_pwd_v1";
       const K_URL = "inter_31386_sb_url_v1";
@@ -2180,19 +2181,24 @@
 
           if (mode === "push") {
             if (showAlert) setMsg("syncing", "Uploading student list...");
-            await rpc("uhs_put_students", { p_key: key, p_students: students.map(plain) });
+            await rpc("uhs_put_students", { p_key: key, p_app: SYNC_APP, p_students: students.map(plain) });
 
             const listed = (await rpc("uhs_list_pdfs", { p_key: key })) || [];
             const onServer = {};
             listed.forEach(x => { onServer[x.app_no] = x.size; });
             const todo = students.filter(s => s.pdfBlob && onServer[s.appNo] !== s.pdfBlob.size);
-            let done = 0;
+            let done = 0, skipped = 0;
             for (const s of todo) {
-              if (showAlert) setMsg("syncing", "Uploading PDFs " + (done + 1) + " / " + todo.length + "...");
-              await rpc("uhs_put_pdf", { p_key: key, p_app_no: String(s.appNo), p_size: s.pdfBlob.size, p_data: await blobToBase64(s.pdfBlob) });
-              done++;
+              if (showAlert) setMsg("syncing", "Uploading PDFs " + (done + skipped + 1) + " / " + todo.length + "...");
+              try {
+                await rpc("uhs_put_pdf", { p_key: key, p_app: SYNC_APP, p_app_no: String(s.appNo), p_size: s.pdfBlob.size, p_data: await blobToBase64(s.pdfBlob) });
+                done++;
+              } catch (e) {
+                if (/too large/i.test(e.message)) skipped++; else throw e;   // over the size limit: skip it, keep going
+              }
             }
-            if (showAlert) setMsg("success", "\u2713 Pushed " + students.length + " students and " + done + " new/updated PDF(s) to the cloud.");
+            if (showAlert) setMsg(skipped ? "error" : "success", "\u2713 Pushed " + students.length + " students and " + done + " new/updated PDF(s) to the cloud." +
+              (skipped ? " " + skipped + " PDF(s) were NOT uploaded because they are over the size limit." : ""));
           } else {
             if (showAlert) setMsg("syncing", "Downloading student list...");
             const data = await rpc("uhs_get_students", { p_key: key });
